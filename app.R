@@ -507,14 +507,14 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Unweighting RFD (N/s):', style = 'color:#888888;'),
-                shiny::verbatimTextOutput('braking.rfd')
+                p('Total duration (s):', style = 'color:#888888;'),
+                shiny::verbatimTextOutput('total.duration')
               ),
               
               shiny::column(
                 4,
-                p('Total duration (s):', style = 'color:#888888;'),
-                shiny::verbatimTextOutput('total.duration')
+                p('Braking RFD (N/s):', style = 'color:#888888;'),
+                shiny::verbatimTextOutput('braking.rfd')
               ),
               
               shiny::column(
@@ -1754,6 +1754,96 @@ shinyApp(
             ggplot2::coord_cartesian(ylim = c(0, max(force.data) + 100)) +
             ggplot2::geom_hline(yintercept = initial.force, linetype = 'dotdash')
         })
+      }
+      
+      #Name of the current directory (folder)
+      #e.g. 'D:/Dropbox/R Work/Shiny Vertical Jump'
+      current.directory <- getwd()
+      
+      #Name of the directory where we want to save the data
+      save.directory <- 'Analyses'
+      
+      #Creates the full save directory path
+      #e.g. 'D:/Dropbox/R Work/Shiny Vertical Jump/Analyses'
+      directory <- file.path(current.directory, save.directory)
+      
+      #Checks if the directory above exists
+      #If not, creates the new directory
+      if(!dir.exists(directory))
+        dir.create(directory)
+      
+      #Names of the 2 - 3 files to save the data to
+      #The file names are based on the date you select in the sidebar
+      bilateral.filename <- paste(jump.date, 'Bilateral Analysis.csv', sep = ' ')
+      unilateral.filename <- paste(jump.date, 'Unilateral Analysis.csv', sep = ' ')
+      
+      #Creates the full file paths based on the directory and the file names
+      bilateral.file <- file.path(directory, bilateral.filename)
+      unilateral.file <- file.path(directory, unilateral.filename)
+      
+      #Checks if the bilateral analysis file exists
+      #If not, creates the file with the necessary header
+      if(!file.exists(bilateral.file)){
+        file.create(bilateral.file)
+        
+        #Adds header to the bilateral analysis file
+        write.table(matrix(c('jump.date','athlete','jump.type','trial','bar.load','jh.ft','jh.ni','jh.tv','ft','ni','tv',
+                             'pf','pv','pp','plf','fpp','vpp','ttpf','avg.rfd','landing.rfd','os.start','os.end','j.start',
+                             'takeoff','landing'), ncol = 25), file = bilateral.file, row.names = F, col.names = F,
+                    sep = ',', append = F)
+      }
+      
+      #Writes data to the bilateral analysis file
+      write.table(matrix(c(as.character(jump.date), athlete, jump.type, trial.number, bar.load, jh.ft, jh.ni, jh.tv,
+                           flight.time, net.impulse, takeoff.velocity, peak.force, peak.velocity, peak.power,
+                           plf, fpp, vpp, ttpf, avg.rfd, landing.rfd, os.start, os.end, j.start, takeoff, landing),
+                         ncol = 25), file = bilateral.file, row.names = F, col.names = F, sep = ',', append = T)
+      
+      #Checks if the unilateral analysis file exists
+      #If not, creates the file with the necessary header
+      if(!file.exists(unilateral.file)){
+        file.create(unilateral.file)
+        
+        #Adds header to the unilateral analysis file
+        write.table(matrix(c('jump.date','athlete','jump.type','trial','bar.load','plate','ni','pf','rfd','plf','landing.rfd'),
+                           ncol = 11), file = unilateral.file, row.names = F, col.names = F, sep = ',', append = F)
+      }
+      
+      #Writes data to the unilateral analysis file
+      #This occurs three times: fp1, fp2, and asymmetry
+      #Each write will include what the values represent--fp1, fp2, or asymmetry
+      write.table(matrix(c(as.character(jump.date), athlete, jump.type, trial.number, bar.load, 'fp1', fp1.net.impulse,
+                           fp1.peak.force, fp1.rfd, fp1.plf, fp1.landing.rfd), ncol = 11), file = unilateral.file,
+                  row.names = F, col.names = F, sep = ',', append = T)
+      
+      write.table(matrix(c(as.character(jump.date), athlete, jump.type, trial.number, bar.load, 'fp2', fp2.net.impulse,
+                           fp2.peak.force, fp2.rfd, fp2.plf, fp2.landing.rfd), ncol = 11), file = unilateral.file,
+                  row.names = F, col.names = F, sep = ',', append = T)
+      
+      write.table(matrix(c(as.character(jump.date), athlete, jump.type, trial.number, bar.load, 'asymmetry', net.impulse.asymmetry,
+                           peak.force.asymmetry, rfd.asymmetry, plf.asymmetry, landing.rfd.asymmetry), ncol = 11),
+                  file = unilateral.file, row.names = F, col.names = F, sep = ',', append = T)
+      
+      #This filename is only created and saved to if you are analyzing a CMJ
+      if(jump.type == 'CMJ'){
+        phasic.filename <- paste(jump.date, 'Phasic Analysis.csv', sep = ' ')
+        phasic.file <- file.path(directory, phasic.filename)
+        
+        #Checks if the file exists
+        #If not, creates it and adds a header to the file
+        if(!file.exists(phasic.file)){
+          file.create(phasic.file)
+          
+          #Adds header to the phasic analysis file
+          write.table(matrix(c('jump.date','athlete','trial','bar.load','unweight.duration','braking.duration','propulsion.duration',
+                               'total.duration','braking.rfd','ft.ct.ratio'), ncol = 10), file = phasic.file,
+                      row.names = F, col.names = F, sep = ',', append = F)
+        }
+        
+        #Writes data to the phasic analysis file
+        write.table(matrix(c(as.character(jump.date), athlete, trial.number, bar.load, unweight.duration / 1000, braking.duration,
+                             propulsion.duration, total.duration / 1000, braking.rfd, ft.ct.ratio), ncol = 10),
+                    file = phasic.file, row.names = F, col.names = F, sep = ',', append = T)
       }
     })
   }
