@@ -7,12 +7,6 @@ This Shiny app is geared toward strength and conditioning professionals and rese
 Importantly, this app is only designed to analyze data from dual PASCO force plates. Users are welcome to create forks that are compatible with other force platforms. Further, this app is written for use with the R package ```shiny```. R was chosen for two reasons: 1) it's free to download (great for budget-strapped users) and 2) I have no experience with other languages. Maybe one day this will be re-written...
 
 ## Running the app
-A more detailed tutorial is in the works. For now, if you want to play around with the app, you can either download it or download ```shiny``` and call
-
-```
-library(shiny)
-
-runGitHub('shiny-vertical-jump', 'mattsams89')
-```
+A more detailed tutorial is in the works. For now, if you want to play around with the app, you'll need to download the file and install ```shiny```. Wherever the app.R file is saved will determine where the script creates an analysis folder. Therefore, you can't call ```runGitHub()``` at the moment to run the app straight from here. This will cause it to save your data to the temp folder on your machine instead of the working directory. I'll see what I can do to change this behavior.
 
 For this app to run, however, you will need the dependencies ```shiny```, ```data.table```, ```dplyr```, ```signal```, ```ggplot2```, ```MESS```, ```shinythemes``` (although you can get away with removing this in line 38), and ```TTR```. Lines 15 - 22 in the source code detail why these packages are dependencies.
