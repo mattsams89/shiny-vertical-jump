@@ -1395,12 +1395,12 @@ shinyApp(
       #Importantly, this may not align with the bilateral time value
       #as the athlete may load the limbs significantly differently from one another
       #when landing
-      fp1.ttpf <-
+      fp1.ttplf <-
         which(jump.data[landing:max.length, fp1] == fp1.plf) / 1000
       
       #Landing RFD for fp1 based on above variables
       fp1.landing.rfd <-
-        (fp1.plf - jump.data[landing, fp1]) / fp1.ttpf
+        (fp1.plf - jump.data[landing, fp1]) / fp1.ttplf
       
       #These variable calculations mirror those for fp1
       #fp2 peak force
@@ -1422,12 +1422,12 @@ shinyApp(
       fp2.plf <- max(jump.data[landing:max.length, fp2])
       
       #Time required to reach fp2 peak landing force
-      fp2.ttpf <-
+      fp2.ttplf <-
         which(jump.data[landing:max.length, fp2] == fp2.plf) / 1000
       
       #Based on above variables
       fp2.landing.rfd <-
-        (fp2.plf - jump.data[landing, fp2]) / fp2.ttpf
+        (fp2.plf - jump.data[landing, fp2]) / fp2.ttplf
       
       #Asymmetry calculations are below
       #A positive value favors fp1, while a negative value favors fp2
