@@ -31,7 +31,7 @@
 options(shiny.maxRequestSize = 40 * 1024 ^ 2)
 
 #Application begins here
-shinyApp(
+shiny::shinyApp(
   #This section creates the UI
   ui = shiny::fluidPage(
     #This sets a more visually appealing theme
@@ -105,7 +105,7 @@ shinyApp(
             'Start',
             
             #Suppresses error messages when nothing has been selected
-            tags$style(
+            shiny::tags$style(
               type = 'text/css',
               '.shiny-output-error { visibility: hidden; }',
               '.shiny-output-error:before { visibility: hidden; }'
@@ -212,7 +212,7 @@ shinyApp(
             'Bilateral Analysis',
             
             #This prevents Shiny from throwing errors prior to plotting your data
-            tags$style(
+            shiny::tags$style(
               type = 'text/css',
               '.shiny-output-error { visibility: hidden; }',
               '.shiny-output-error:before { visibility: hidden; }'
@@ -233,19 +233,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Jump height-FT (cm):', style = 'color:#888888;'),
+                shiny::p('Jump height-FT (cm):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('jh.ft')
               ),
               
               shiny::column(
                 4,
-                p('Jump height-NI (cm):', style = 'color:#888888;'),
+                shiny::p('Jump height-NI (cm):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('jh.ni')
               ),
               
               shiny::column(
                 4,
-                p('Jump height-TV (cm):', style = 'color:#888888;'),
+                shiny::p('Jump height-TV (cm):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('jh.tv')
               )
             ),
@@ -253,19 +253,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Flight time (s):', style = 'color:#888888;'),
+                shiny::p('Flight time (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('flight.time')
               ),
               
               shiny::column(
                 4,
-                p('Net impulse (N*s):', style = 'color:#888888;'),
+                shiny::p('Net impulse (N*s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('net.impulse')
               ),
               
               shiny::column(
                 4,
-                p('Takeoff velocity (m/s):', style = 'color:#888888;'),
+                shiny::p('Takeoff velocity (m/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('takeoff.velocity')
               )
             ),
@@ -273,19 +273,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Peak force (N):', style = 'color:#888888;'),
+                shiny::p('Peak force (N):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('peak.force')
               ),
               
               shiny::column(
                 4,
-                p('Peak velocity (m/s):', style = 'color:#888888;'),
+                shiny::p('Peak velocity (m/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('peak.velocity')
               ),
               
               shiny::column(
                 4,
-                p('Peak power (W):', style = 'color:#888888;'),
+                shiny::p('Peak power (W):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('peak.power')
               )
             ),
@@ -293,19 +293,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Peak landing force (N):', style = 'color:#888888;'),
+                shiny::p('Peak landing force (N):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('plf')
               ),
               
               shiny::column(
                 4,
-                p('Force @ peak power (N):', style = 'color:#888888;'),
+                shiny::p('Force @ peak power (N):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fpp')
               ),
               
               shiny::column(
                 4,
-                p('Velocity @ peak power (m/s):', style = 'color:#888888;'),
+                shiny::p('Velocity @ peak power (m/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('vpp')
               )
             ),
@@ -313,19 +313,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Time to peak force (s):', style = 'color:#888888;'),
+                shiny::p('Time to peak force (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('ttpf')
               ),
               
               shiny::column(
                 4,
-                p('Average RFD (N/s):', style = 'color:#888888;'),
+                shiny::p('Average RFD (N/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('avg.rfd')
               ),
               
               shiny::column(
                 4,
-                p('Landing RFD (N/s):', style = 'color:#888888;'),
+                shiny::p('Landing RFD (N/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('landing.rfd')
               )
             )
@@ -338,7 +338,7 @@ shinyApp(
             'Unilateral Analysis',
             
             #Suppresses error messages when nothing has been selected
-            tags$style(
+            shiny::tags$style(
               type = 'text/css',
               '.shiny-output-error { visibility: hidden; }',
               '.shiny-output-error:before { visibility: hidden; }'
@@ -353,29 +353,29 @@ shinyApp(
             #Be sure you always collect force plate A/1 as the left leg and force plate B/2 as the right leg, or
             #you will get some very confusing values
             shiny::fluidRow(
-              shiny::column(4, tags$u(h2('Left leg'))),
+              shiny::column(4, shiny::tags$u(h2('Left leg'))),
               
-              shiny::column(4, tags$u(h2('Right leg'))),
+              shiny::column(4, shiny::tags$u(h2('Right leg'))),
               
-              shiny::column(4, tags$u(h2('% symmetry index')))
+              shiny::column(4, shiny::tags$u(h2('% symmetry index')))
             ),
             
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Net impulse:', style = 'color:#888888;'),
+                shiny::p('Net impulse:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp1.net.impulse')
               ),
               
               shiny::column(
                 4,
-                p('Net impulse:', style = 'color:#888888;'),
+                shiny::p('Net impulse:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp2.net.impulse')
               ),
               
               shiny::column(
                 4,
-                p('Net impulse:', style = 'color:#888888;'),
+                shiny::p('Net impulse:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('net.impulse.asymmetry')
               )
             ),
@@ -383,19 +383,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Peak force:', style = 'color:#888888;'),
+                shiny::p('Peak force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp1.peak.force')
               ),
               
               shiny::column(
                 4,
-                p('Peak force:', style = 'color:#888888;'),
+                shiny::p('Peak force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp2.peak.force')
               ),
               
               shiny::column(
                 4,
-                p('Peak force:', style = 'color:#888888;'),
+                shiny::p('Peak force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('peak.force.asymmetry')
               )
             ),
@@ -403,19 +403,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('RFD:', style = 'color:#888888;'),
+                shiny::p('RFD:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp1.rfd')
               ),
               
               shiny::column(
                 4,
-                p('RFD:', style = 'color:#888888'),
+                shiny::p('RFD:', style = 'color:#888888'),
                 shiny::verbatimTextOutput('fp2.rfd')
               ),
               
               shiny::column(
                 4,
-                p('RFD:', style = 'color:#888888;'),
+                shiny::p('RFD:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('rfd.asymmetry')
               )
             ),
@@ -423,19 +423,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Peak landing force:', style = 'color:#888888;'),
+                shiny::p('Peak landing force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp1.plf')
               ),
               
               shiny::column(
                 4,
-                p('Peak landing force:', style = 'color:#888888;'),
+                shiny::p('Peak landing force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp2.plf')
               ),
               
               shiny::column(
                 4,
-                p('Peak landing force:', style = 'color:#888888;'),
+                shiny::p('Peak landing force:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('plf.asymmetry')
               )
             ),
@@ -443,19 +443,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Landing RFD:', style = 'color:#888888;'),
+                shiny::p('Landing RFD:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp1.landing.rfd')
               ),
               
               shiny::column(
                 4,
-                p('Landing RFD:', style = 'color:#888888;'),
+                shiny::p('Landing RFD:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('fp2.landing.rfd')
               ),
               
               shiny::column(
                 4,
-                p('Landing RFD:', style = 'color:#888888;'),
+                shiny::p('Landing RFD:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('landing.rfd.asymmetry')
               )
             )
@@ -468,7 +468,7 @@ shinyApp(
             'Phasic Analysis',
             
             #Suppresses error messages when nothing has been selected
-            tags$style(
+            shiny::tags$style(
               type = 'text/css',
               '.shiny-output-error { visibility: hidden; }',
               '.shiny-output-error:before { visibility: hidden; }'
@@ -487,19 +487,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Unweighting duration (s):', style = 'color:#888888;'),
+                shiny::p('Unweighting duration (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('unweight.duration')
               ),
               
               shiny::column(
                 4,
-                p('Braking duration (s):', style = 'color:#888888;'),
+                shiny::p('Braking duration (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('braking.duration')
               ),
               
               shiny::column(
                 4,
-                p('Propulsion duration (s):', style = 'color:#888888;'),
+                shiny::p('Propulsion duration (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('propulsion.duration')
               )
             ),
@@ -507,19 +507,19 @@ shinyApp(
             shiny::fluidRow(
               shiny::column(
                 4,
-                p('Total duration (s):', style = 'color:#888888;'),
+                shiny::p('Total duration (s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('total.duration')
               ),
               
               shiny::column(
                 4,
-                p('Braking RFD (N/s):', style = 'color:#888888;'),
+                shiny::p('Braking RFD (N/s):', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('braking.rfd')
               ),
               
               shiny::column(
                 4,
-                p('FT-CT Ratio:', style = 'color:#888888;'),
+                shiny::p('FT-CT Ratio:', style = 'color:#888888;'),
                 shiny::verbatimTextOutput('ft.ct.ratio')
               )
             )
@@ -928,7 +928,7 @@ shinyApp(
       
       #Sets the flight time threshold
       #This can be adjusted to your needs
-      threshold <- 7.5
+      threshold <- 20
       
       #Finds the end of the trial; this is used to search parts of the force-time curve later
       #This could have been alternatively calculated as length(jump.data[, time])
