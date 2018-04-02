@@ -895,7 +895,7 @@ shiny::shinyApp(
     #System mass is an optional parameter in this case
     shiny::observeEvent(input$auto.analysis, {
       #Checks that data are uploaded and that you have selected an offset area
-      if (is.null(trial.format()) | is.null(os.range$xmin))
+      if (is.null(trial.format()))
         return(NULL)
       
       #These identifiers are pulled from the sidebar
@@ -908,9 +908,17 @@ shiny::shinyApp(
       filter.type <- input$filter.type
       bar.load <- input$bar.load
       
-      #This pulls the offset time values
-      os.start <- input$os.start
-      os.end <- input$os.end
+      #This pulls the offset time values if you have selected an offset area
+      if(!is.null(os.range$xmin)){
+        os.start <- input$os.start
+        os.end <- input$os.end
+      }
+      
+      else{
+        os.start <- 'NA'
+        os.end <- 'NA'
+      }
+      
       
       #This pulls the system mass time values if you have selected a system mass area
       if (!is.null(mass.range$xmin)) {
@@ -936,16 +944,19 @@ shiny::shinyApp(
       #Either provides the same result
       max.length <- max(jump.data[, time])
       
+      #This portion of code runs if you've selected an offset area
       #Calculates the offset for each plate and for the overall force value
-      fp1.offset <- mean(jump.data[os.start:os.end, fp1])
-      fp2.offset <- mean(jump.data[os.start:os.end, fp2])
-      total.offset <- mean(jump.data[os.start:os.end, total.force])
-      
-      #Offsets the data
-      jump.data[, fp1] <- jump.data[, fp1] - fp1.offset
-      jump.data[, fp2] <- jump.data[, fp2] - fp2.offset
-      jump.data[, total.force] <-
-        jump.data[, total.force] - total.offset
+      if(!is.null(os.range$xmin)){
+        fp1.offset <- mean(jump.data[os.start:os.end, fp1])
+        fp2.offset <- mean(jump.data[os.start:os.end, fp2])
+        total.offset <- mean(jump.data[os.start:os.end, total.force])
+        
+        #Offsets the data
+        jump.data[, fp1] <- jump.data[, fp1] - fp1.offset
+        jump.data[, fp2] <- jump.data[, fp2] - fp2.offset
+        jump.data[, total.force] <-
+          jump.data[, total.force] - total.offset
+      }
       
       #Determines the system weight
       #This will be important for determining the threshold for jump initiation,
@@ -982,16 +993,42 @@ shiny::shinyApp(
       fp2.system.mass <- fp2.system.weight / 9.81
       total.system.mass <- total.system.weight / 9.81
       
-      #Finds the takeoff point from total.force; searches backward from the start of the offset time value
-      #1 is added to the value because the function is actually searching for the last point before force
-      #falls below the threshold for takeoff; that is, the athlete is still on the plate before adding 1
-      takeoff <-
-        purrr::detect_index(jump.data[1:os.start, total.force], ~ .x > threshold, .right = T)
+      #Finds the takeoff and landing points from total.force; how this is determined depends on whether you set an offset area
+      #If an offset area is selected
+      if(!is.null(os.range$xmin)){
+        #Searches backward from the start of the offset time value
+        #1 is added to this value to correctly represent when the athlete is no longer on the force plate
+        takeoff <-
+          purrr::detect_index(jump.data[1:os.start, total.force], ~ .x > threshold, .right = T) + 1
+        
+        #Finds landing from total.force; searches forward from the end of the offset time value
+        #No adjustments are needed here, as this searches for the first point above the threshold
+        landing <-
+          purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end 
+      }
       
-      #Finds landing from total.force; searches forward from the end of the offset time value
-      #No adjustments are needed here, as this searches for the first point above the threshold
-      landing <-
-        purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end
+      #Otherwise, searches from beginning (or the end of the system mass area) to the first value below the threshold for takeoff
+      #and backwards from the end of the file to find landing
+      #Importantly, you must set these areas if the beginning or end of your trial contains points where the athlete is not on the plate
+      else{
+        #Determines if you've set a system mass area
+        #If so, finds takeoff from the end of the system mass range
+        #1 is subtracted here due to the way the detect_index function reports index values
+        #Otherwise, this would return a value 1 greater than the other methods determining takeoff
+        if(!is.null(mass.range$xmin)){
+          takeoff <-
+            purrr::detect_index(jump.data[mass.end:max.length, total.force], ~ .x < threshold) + mass.end - 1
+        }
+        
+        #Otherwise, it searches from the beginning of the trial
+        else{
+          takeoff <-
+            purrr::detect_index(jump.data[1:max.length, total.force], ~ .x < threshold)
+        }
+        
+        landing <-
+          purrr::detect_index(jump.data[takeoff:max.length, total.force], ~ .x < threshold, .right = T) + takeoff
+      }
       
       #Finds peak force prior to takeoff
       #Used for searching for jump initiation later on
