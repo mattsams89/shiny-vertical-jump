@@ -1,11 +1,11 @@
 #This Shiny application performs analysis of squat jump or countermovement jump data collected on PASCO force plates. Calculated variables
 #are saved to 2 - 3 files based on the vertical jump type.
 
-#UI setup begins at line 36
-#Server code begins at line 533
-#Data handling, processing, and filtering occur from lines 549 - 748
-#Analysis begins at line 892
-#Variable calculations begin at line 1075
+#UI setup begins at line 37
+#Server code begins at line 534
+#Data handling, processing, and filtering occur from lines 550 - 749
+#Analysis begins at line 893
+#Variable calculations begin at line 1076
 
 #Importantly, no alterations of the PASCO .csv export are needed prior to analyzing the data. The reactive functions in the server
 #portion of the code parse the data into trials. You can then select the trial of interest from the "Select trial" area on the left sidebar.
@@ -20,6 +20,7 @@
 #MESS: calculates impulse via auc function
 #shinythemes: makes Shiny pretty
 #TTR: used for simple moving average filter if selected
+#purrr: used to quickly find index values satisfying search criteria (e.g. force < threshold); MUCH faster than original
 
 #A future version of this script will allow for sampling frequencies other than 1000 Hz. The script was written
 #over a two-day period, so I wasn't thinking clearly on how to account for other sampling frequencies
@@ -891,7 +892,7 @@ shiny::shinyApp(
     
     #This performs the automatic analysis
     #You must have uploaded data and selected an offset area for this function to be carried out
-    #System mass in an optional parameter in this case
+    #System mass is an optional parameter in this case
     shiny::observeEvent(input$auto.analysis, {
       #Checks that data are uploaded and that you have selected an offset area
       if (is.null(trial.format()) | is.null(os.range$xmin))
@@ -985,12 +986,12 @@ shiny::shinyApp(
       #1 is added to the value because the function is actually searching for the last point before force
       #falls below the threshold for takeoff; that is, the athlete is still on the plate before adding 1
       takeoff <-
-        os.start - max.col(t(rev(jump.data[1:os.start, total.force]) > threshold), 'first') + 1
+        purrr::detect_index(jump.data[1:os.start, total.force], ~ .x > threshold, .right = T)
       
       #Finds landing from total.force; searches forward from the end of the offset time value
       #No adjustments are needed here, as this searches for the first point above the threshold
       landing <-
-        max.col(t(jump.data[os.end:max.length, total.force] > threshold), 'first') + os.end
+        purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end
       
       #Finds peak force prior to takeoff
       #Used for searching for jump initiation later on
@@ -998,7 +999,7 @@ shiny::shinyApp(
       
       #Determines the time value associated with peak force
       peak.force.time <-
-        which((jump.data[1:takeoff, total.force]) == peak.force)
+        purrr::detect_index(jump.data[1:takeoff, total.force], ~ .x == peak.force)
       
       #If you're analyzing an SJ
       if (jump.type == 'SJ') {
@@ -1015,8 +1016,8 @@ shiny::shinyApp(
         #This will be implemented through multiplying the sampling frequency by 0.03 and
         #rounding to the nearest integer. This value will correspond to the appropriate number
         #of points to step back in the data
-        j.start <- peak.force.time -
-          max.col(t(rev(jump.data[1:peak.force.time, total.force]) < sj.threshold), 'first') - 30
+        j.start <- 
+          purrr::detect_index(jump.data[1:peak.force.time, total.force], ~ .x < sj.threshold, .right = T) - 30
       }
       
       #If you're analyzing a CMJ, the threshold and search are a bit different
@@ -1046,7 +1047,7 @@ shiny::shinyApp(
           #This determines the time at which minimum force occurs during the CMJ
           #mass.end is added here to calculate the correct time value
           cmj.min.force.time <-
-            which((jump.data[mass.end:peak.force.time, total.force]) == cmj.min.force) + mass.end
+            purrr::detect_index(jump.data[mass.end:peak.force.time, total.force], ~ .x == cmj.min.force) + mass.end
         }
         
         else{
@@ -1056,7 +1057,7 @@ shiny::shinyApp(
           #No correction is needed here as long as the beginning of the trial involves
           #the athlete standing quietly on the force plate
           cmj.min.force.time <-
-            which((jump.data[1:peak.force.time, total.force]) == cmj.min.force)
+            purrr::detect_index(jump.data[1:peak.force.time, total.force], ~ .x == cmj.min.force)
         }
         
         #Determines time at which jump begins
@@ -1068,8 +1069,8 @@ shiny::shinyApp(
         #This will be implemented through multiplying the sampling frequency by 0.03 and
         #rounding to the nearest integer. This value will correspond to the appropriate number
         #of points to step back in the data
-        j.start <- cmj.min.force.time -
-          max.col(t(rev(jump.data[1:cmj.min.force.time, total.force]) > cmj.threshold), 'first') - 30
+        j.start <- 
+          purrr::detect_index(jump.data[1:cmj.min.force.time, total.force], ~ .x > cmj.threshold, .right = T) - 30
       }
       
       #Variables of interest are calculated from here#
@@ -1152,7 +1153,8 @@ shiny::shinyApp(
       
       #Finds the time at which peak power occurs
       #This is used to determine fpp and vpp
-      peak.power.time <- which(power.data == peak.power)
+      peak.power.time <- 
+        purrr::detect_index(power.data, ~ .x == peak.power)
       
       #Finds the peak force after the athlete lands
       plf <- max(jump.data[landing:max.length, total.force])
@@ -1168,12 +1170,13 @@ shiny::shinyApp(
       
       #Determines the time required to reach peak force
       #This is used for the avg.rfd calculation shortly
-      ttpf <- which(force.data == peak.force) / 1000
+      ttpf <- 
+        purrr::detect_index(force.data, ~ .x == peak.force) / 1000
       
       #Determines the time required to reach peak landing force
       #This is used to calculated landing rfd
       ttplf <-
-        which(jump.data[landing:max.length, total.force] == plf) / 1000
+        purrr::detect_index(jump.data[landing:max.length, total.force], ~ .x == plf) / 1000
       
       #The force at the start of the jump
       #Like tail, head() retains x number of points from the beginning of a vector
@@ -1379,7 +1382,8 @@ shiny::shinyApp(
       
       #Time required to reach peak force on fp1
       #Used for fp1 avg RFD
-      fp1.ttpf <- which(fp1.force.data == fp1.peak.force) / 1000
+      fp1.ttpf <- 
+        purrr::detect_index(fp1.force.data, ~ .x == fp1.peak.force) / 1000
       
       #Determines the initial force at initiation of the jump
       #Also used for fp1 avg RFD
@@ -1396,7 +1400,7 @@ shiny::shinyApp(
       #as the athlete may load the limbs significantly differently from one another
       #when landing
       fp1.ttplf <-
-        which(jump.data[landing:max.length, fp1] == fp1.plf) / 1000
+        purrr::detect_index(jump.data[landing:max.length, fp1], ~ .x == fp1.plf) / 1000
       
       #Landing RFD for fp1 based on above variables
       fp1.landing.rfd <-
@@ -1408,7 +1412,8 @@ shiny::shinyApp(
       
       #Time required to reach fp2 peak force
       #Used for fp2 avg RFD
-      fp2.ttpf <- which(fp2.force.data == fp2.peak.force) / 1000
+      fp2.ttpf <- 
+        purrr::detect_index(fp2.force.data, ~ .x == fp2.peak.force) / 1000
       
       #fp2 force at initiation of the jump
       #Used for fp2 avg RFD
@@ -1423,7 +1428,7 @@ shiny::shinyApp(
       
       #Time required to reach fp2 peak landing force
       fp2.ttplf <-
-        which(jump.data[landing:max.length, fp2] == fp2.plf) / 1000
+        purrr::detect_index(jump.data[landing:max.length, fp2], ~ .x == fp2.plf) / 1000
       
       #Based on above variables
       fp2.landing.rfd <-
@@ -1558,8 +1563,8 @@ shiny::shinyApp(
         #from peak.force.time to j.start
         #The time point represents the final point at which force is below the force at the start of the
         #unweighting phase. This marks the demarcation between unweighting and braking
-        unweight.end.time <- peak.force.time -
-          max.col(t(rev(jump.data[j.start:peak.force.time, total.force]) < initial.force), 'first')
+        unweight.end.time <- 
+          purrr::detect_index(jump.data[j.start:peak.force.time, total.force], ~ .x < initial.force, .right = T) + j.start
         
         #Finds the length of the unweighting phase
         #Subtracts j.start from unweight.end.time to get unweight.duration
