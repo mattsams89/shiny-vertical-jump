@@ -1002,9 +1002,10 @@ shiny::shinyApp(
           purrr::detect_index(jump.data[1:os.start, total.force], ~ .x > threshold, .right = T) + 1
         
         #Finds landing from total.force; searches forward from the end of the offset time value
-        #No adjustments are needed here, as this searches for the first point above the threshold
+        #1 is subtracted here to reflect the fact we're searching for the first point the athlete is "on" the force plate
+        #Subtracting 1 pulls us back to the final point they're not on the plate
         landing <-
-          purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end 
+          purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end - 1
       }
       
       #Otherwise, searches from beginning (or the end of the system mass area) to the first value below the threshold for takeoff
@@ -1013,8 +1014,6 @@ shiny::shinyApp(
       else{
         #Determines if you've set a system mass area
         #If so, finds takeoff from the end of the system mass range
-        #1 is subtracted here due to the way the detect_index function reports index values
-        #Otherwise, this would return a value 1 greater than the other methods determining takeoff
         if(!is.null(mass.range$xmin)){
           takeoff <-
             purrr::detect_index(jump.data[mass.end:max.length, total.force], ~ .x < threshold) + mass.end - 1
@@ -1084,7 +1083,7 @@ shiny::shinyApp(
           #This determines the time at which minimum force occurs during the CMJ
           #mass.end is added here to calculate the correct time value
           cmj.min.force.time <-
-            purrr::detect_index(jump.data[mass.end:peak.force.time, total.force], ~ .x == cmj.min.force) + mass.end
+            purrr::detect_index(jump.data[mass.end:peak.force.time, total.force], ~ .x == cmj.min.force) + mass.end - 1
         }
         
         else{
@@ -1213,7 +1212,7 @@ shiny::shinyApp(
       #Determines the time required to reach peak landing force
       #This is used to calculated landing rfd
       ttplf <-
-        purrr::detect_index(jump.data[landing:max.length, total.force], ~ .x == plf) / 1000
+        (purrr::detect_index(jump.data[landing:max.length, total.force], ~ .x == plf) - 1) / 1000
       
       #The force at the start of the jump
       #Like tail, head() retains x number of points from the beginning of a vector
@@ -1437,7 +1436,7 @@ shiny::shinyApp(
       #as the athlete may load the limbs significantly differently from one another
       #when landing
       fp1.ttplf <-
-        purrr::detect_index(jump.data[landing:max.length, fp1], ~ .x == fp1.plf) / 1000
+        (purrr::detect_index(jump.data[landing:max.length, fp1], ~ .x == fp1.plf) - 1) / 1000
       
       #Landing RFD for fp1 based on above variables
       fp1.landing.rfd <-
@@ -1465,7 +1464,7 @@ shiny::shinyApp(
       
       #Time required to reach fp2 peak landing force
       fp2.ttplf <-
-        purrr::detect_index(jump.data[landing:max.length, fp2], ~ .x == fp2.plf) / 1000
+        (purrr::detect_index(jump.data[landing:max.length, fp2], ~ .x == fp2.plf) - 1) / 1000
       
       #Based on above variables
       fp2.landing.rfd <-
@@ -1601,7 +1600,7 @@ shiny::shinyApp(
         #The time point represents the final point at which force is below the force at the start of the
         #unweighting phase. This marks the demarcation between unweighting and braking
         unweight.end.time <- 
-          purrr::detect_index(jump.data[j.start:peak.force.time, total.force], ~ .x < initial.force, .right = T) + j.start
+          purrr::detect_index(jump.data[j.start:peak.force.time, total.force], ~ .x < initial.force, .right = T) + j.start - 1
         
         #Finds the length of the unweighting phase
         #Subtracts j.start from unweight.end.time to get unweight.duration
