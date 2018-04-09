@@ -661,7 +661,7 @@ shiny::shinyApp(
           #Filters fp1
           fp1 <- signal::filter(data.filter, fp1)
           
-          #The first 100 data points are removed from the filtered force-time data
+          #The first 200 data points are removed from the filtered force-time data
           #Because the Butterworth filter is an ARMA filter,
           #the initial filtered data will always be 0. Further, the data increase to their
           #true value over the first 100 or so data points.
@@ -675,7 +675,7 @@ shiny::shinyApp(
           #Filters fp2
           fp2 <- signal::filter(data.filter, fp2)
           
-          #The first 100 data points are removed from the filtered force-time data
+          #The first 200 data points are removed from the filtered force-time data
           #Because the Butterworth filter is an ARMA filter,
           #the initial filtered data will always be 0. Further, the data increase to their
           #true value over the first 100 or so data points.
