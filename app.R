@@ -667,7 +667,7 @@ shiny::shinyApp(
           #true value over the first 100 or so data points.
           #This is similar in idea to losing the first few data points when creating a moving
           #average.
-          fp1 <- fp1[-(1:100)]
+          fp1 <- fp1[-(1:200)]
           
           #Isolates fp2 for filtering
           fp2 <- jump.data[, 'fp2']
@@ -681,7 +681,7 @@ shiny::shinyApp(
           #true value over the first 100 or so data points.
           #This is similar in idea to losing the first few data points when creating a rolling
           #average.
-          fp2 <- fp2[-(1:100)]
+          fp2 <- fp2[-(1:200)]
           
           #Creates a data frame containing the filtered data plus a time column in ms
           #At present, only a 1000 Hz sampling frequency is acceptable
