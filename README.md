@@ -54,7 +54,7 @@ jump.data <- dplyr::select(jump.data, dplyr::starts_with('Normal'))
 For instance, if your vertical force data were instead named 'Vertical Force Left' and 'Vertical Force Right' you would change the code to
 
 ```
-jump.data <- dplyr::select(jump.data, dplyr::starts_with('Vertical'))
+jump.data <- dplyr::select(jump.data, dplyr::starts_with('Vertical')
 ```
 
 Avoid names starting with 'Force,' as Capstone names each of the force beams (2-axis plates; not sure if present on single-axis plates) 'Force Beam 1,' 'Force Beam 2,' etc. This will break the app as the above code excludes all non-normal force data. That is, any force beam data, user-defined calculations, etc. are excluded *as long as* they do not start with the word 'Normal.' This is what allows you to page through the trials with the trial selector I'll cover a little later.
