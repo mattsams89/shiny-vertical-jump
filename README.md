@@ -33,7 +33,7 @@ I normally get around this by having a different project for each team. You can 
 
 ![New folder](/Tutorial/New%20project%202.png) 
 
-![Project type](/Tutorial/New20project%203.png) 
+![Project type](/Tutorial/New%20project%203.png) 
 
 ![Project name](/Tutorial/New%20project%204.png) 
 
@@ -61,7 +61,7 @@ Avoid names starting with 'Force,' as Capstone names each of the force beams (2-
 
 Below is an example our our Capstone data collection dashboard. You can see it's pretty cluttered. Graphs of the normal forces are all you really need, but I like to have this other information available to the athletes after each jump. These digit widgets also help me determine if an athlete needs to perform additional trials if the values are inconsistent from one trial to the next.
 
-![Dashboard example](/Tutorial/Capstone$20dashboard.png)
+![Dashboard example](/Tutorial/Capstone%20dashboard.png)
 
 If you've used Capstone before, you know each sensor data variable and all calculated variables are exported during the data export. For instance, our export includes 19 columns per trial (ignore Force Left and Force Right on the top left; six individual variables per plate plus six additional calculated variables plus a time column). This is why the 
 ```
