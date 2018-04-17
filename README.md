@@ -104,8 +104,8 @@ You have the following in the left-hand panel:
     None, 2nd order 10 Hz Butterworth, and 10-point SMA available by default  
     Other filters can be written to suit your needs
 7. A trial selector
-    Use the up/down arrows on this box or type in a new number to go to that trial
-    The box will not allow you to enter a number greater than the total number of trials
+    Use the up/down arrows on this box or type in a new number to go to that trial  
+    The box will not allow you to enter a number greater than the total number of trials  
 8. A dropdown for different bar loads  
     0, 11, 20 are the default options  
     These can be amended in the code
