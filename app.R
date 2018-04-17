@@ -664,7 +664,7 @@ shiny::shinyApp(
           #The first 200 data points are removed from the filtered force-time data
           #Because the Butterworth filter is an ARMA filter,
           #the initial filtered data will always be 0. Further, the data increase to their
-          #true value over the first 100 or so data points.
+          #true value over the first 200 or so data points.
           #This is similar in idea to losing the first few data points when creating a moving
           #average.
           fp1 <- fp1[-(1:200)]
@@ -678,7 +678,7 @@ shiny::shinyApp(
           #The first 200 data points are removed from the filtered force-time data
           #Because the Butterworth filter is an ARMA filter,
           #the initial filtered data will always be 0. Further, the data increase to their
-          #true value over the first 100 or so data points.
+          #true value over the first 200 or so data points.
           #This is similar in idea to losing the first few data points when creating a rolling
           #average.
           fp2 <- fp2[-(1:200)]
@@ -993,9 +993,12 @@ shiny::shinyApp(
       fp2.system.mass <- fp2.system.weight / 9.81
       total.system.mass <- total.system.weight / 9.81
       
-      #Finds the takeoff and landing points from total.force; how this is determined depends on whether you set an offset area
+      #Finds the takeoff and landing points from total.force; how this is determined depends 
+      #on whether you set an offset area
+      
       #If an offset area is selected
       if(!is.null(os.range$xmin)){
+        
         #Searches backward from the start of the offset time value
         #1 is added to this value to correctly represent when the athlete is no longer on the force plate
         takeoff <-
@@ -1008,10 +1011,13 @@ shiny::shinyApp(
           purrr::detect_index(jump.data[os.end:max.length, total.force], ~ .x > threshold) + os.end - 1
       }
       
-      #Otherwise, searches from beginning (or the end of the system mass area) to the first value below the threshold for takeoff
+      #Otherwise, searches from beginning (or the end of the system mass area) to the first value 
+      #below the threshold for takeoff
       #and backwards from the end of the file to find landing
-      #Importantly, you must set these areas if the beginning or end of your trial contains points where the athlete is not on the plate
+      #Importantly, you must set these areas if the beginning or end of 
+      #your trial contains points where the athlete is not on the plate
       else{
+        
         #Determines if you've set a system mass area
         #If so, finds takeoff from the end of the system mass range
         if(!is.null(mass.range$xmin)){
@@ -1887,5 +1893,6 @@ shiny::shinyApp(
                     file = phasic.file, row.names = F, col.names = F, sep = ',', append = T)
       }
     })
+
   }
 )
