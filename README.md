@@ -1,6 +1,13 @@
 # Shiny Vertical Jump Analysis
 An open-source solution for vertical jump analysis
 
+# Table of contents
+* [What is this?](#what-is-this)
+* [Running the app](#running-the-app)
+* [Preparing your data](#preparing-your-data)
+* [Analyzing your data](#analyzing-your-data)
+* [Wrapping up](#wrapping up)
+
 ## What is this?
 This Shiny app is geared toward strength and conditioning professionals and researchers who can't afford vertical jump analysis software and those who don't have the coding knowledge to design their own analyses. It's my hope these individuals will have an alternative to analyzing their force-time data in Excel (we've all been there). This allows for more powerful analysis than just simply jump height, peak force, etc. Additionally, this app is publicly available to take the cover off the black box that is force-time data analysis. A set of visible filtering, plotting, and variable calculation functions allow for consistent analysis procedures between users. 
 
