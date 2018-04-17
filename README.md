@@ -86,19 +86,19 @@ Run the app by pressing ctrl + shift + enter or by pressing the 'Run App' button
 ![App start](/Tutorial/Analysis%202.png)
 
 You have the following in the left-hand panel:
-1. A file selector
+1. A file selector  
     Currently, files up to 40 MB are supported. You can change this in the app settings by altering line 32: `options(shiny.maxRequestSize = 40 * 1024 ^ 2)`.
 2. A date selector
 3. A text box to enter your athlete's name
-4. A dropdown to select the jump type
+4. A dropdown to select the jump type  
     Required for the analysis to function correctly
 5. Boxes to change your plates' slope and intercept values if you've calibrated
-6. A dropdown for different filters
-    None, 2nd order 10 Hz Butterworth, and 10-point SMA available by default
+6. A dropdown for different filters  
+    None, 2nd order 10 Hz Butterworth, and 10-point SMA available by default  
     Other filters can be written to suit your needs
 7. A trial selector
-8. A dropdown for different bar loads
-    0, 11, 20 are the default options
+8. A dropdown for different bar loads  
+    0, 11, 20 are the default options  
     These can be amended in the code
 
 ![File selection](/Tutorial/Analysis%203.png)
