@@ -59,16 +59,32 @@ jump.data <- dplyr::select(jump.data, dplyr::starts_with('Vertical')
 
 Avoid names starting with 'Force,' as Capstone names each of the force beams (2-axis plates; not sure if present on single-axis plates) 'Force Beam 1,' 'Force Beam 2,' etc. This will break the app as the above code excludes all non-normal force data. That is, any force beam data, user-defined calculations, etc. are excluded *as long as* they do not start with the word 'Normal.' This is what allows you to page through the trials with the trial selector I'll cover a little later.
 
-Below is an example our our Capstone data collection dashboard. You can see it's pretty cluttered. Graphs of the normal forces are all you really need, but I like to have this other information available to the athletes after each jump. These digit widgets also help me determine if an athlete needs to perform additional trials if the values are inconsistent from one trial to the next.
+Below is an example of our Capstone data collection dashboard. You can see it's pretty cluttered. Graphs of the normal forces are all you really need, but I like to have this other information available to the athletes after each jump. These digit widgets also help me determine if an athlete needs to perform additional trials if the values are inconsistent from one trial to the next.
 
 ![Dashboard example](/Tutorial/Capstone%20dashboard.png)
 
-If you've used Capstone before, you know each sensor data variable and all calculated variables are exported during the data export. For instance, our export includes 19 columns per trial (ignore Force Left and Force Right on the top left; six individual variables per plate plus six additional calculated variables plus a time column). This is why the 
+If you've used Capstone before, you know each sensor data variable and all calculated variables are exported during the data export. For instance, our export (below) includes 19 columns per trial (ignore Force Left and Force Right on the top left; six individual variables per plate plus six additional calculated variables plus a time column). This is why the 
 ```
 jump.data <- dplyr::select(jump.data, dplyr::starts_with('Normal'))
 ```
-bit above is central to the code functioning correctly.
+explanation above is central to the code functioning correctly.
 
 ![Data fields](/Tutorial/Capstone%20data%20summary.png)
 
 ![Capstone export](/Tutorial/Capstone%20export.png)
+
+## Analyzing your data
+
+Once you have everything installed and have exported your data, all that's left is the analysis. I've attempted to make analysis as pain-free as possible as you're only required to set a few pieces of information on the left-hand side of the application. The analysis and saving the results are essentially automated after that.
+
+![File structure](/Tutorial/Analysis%201.png)
+
+As an example, here is how my files are organized for one of our teams. You'll notice the app.R file is present and has been added to the project environment by clicking on it. There are several other folders present, none of which are required. I just like to keep things tidy. The application will create its own 'Analyses' folder in the same directory as the app.R file to save results if one doesn't already exist.
+
+Run the app by pressing ctrl + shift + enter or by pressing the 'Run App' button. Depending on your R Studio settings (the tiny dropdown menu next to the 'Run App' button), this will open a new window either in your web browser or via R's own web browser. They work the same way, so it doesn't really matter which you have selected. Or at least I think so. I've only tested the app with Chrome, so if IE, Edge, Opera, Firefox, etc. is having issues, I would suggest running Chrome or the internal browser instead.
+
+![App start](/Tutorial/Analysis%202.png)
+
+You have the following in the left-hand panel:
+1. A file selector
+* Currently, files up to 40 MB are supported. You can change this in the app settings by altering line 32: `options(shiny.maxRequestSize = 40 * 1024 ^ 2)`.
