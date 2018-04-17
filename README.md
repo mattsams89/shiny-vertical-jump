@@ -15,33 +15,33 @@ Once installed, you'll need several packages that are dependencies for the code 
 
 Once you have R and all the required packages, you can download the app as a .zip folder (click the green 'Clone or download' button on GitHub and select 'Download ZIP') or manually copy the [raw code](https://raw.githubusercontent.com/mattsams89/shiny-vertical-jump/master/app.R) to a new R script file (see below).
 
-![New file](Tutorial/New script file.png?raw=true)  
+![New file](shiny-vertical-jump/Tutorial/Capstone dashboard.png?raw=true)  
 
 If you download the app as a .zip, you'll need to extract the app.R file. Importantly, wherever the app.R file is stored will determine where the analysis files are created. So regardless of whether you download the .zip file or manually copy the code, be sure to save the file to the correct directory. For instance, if you work with several teams and want to keep their data separate you might save a copy of the app to folders for each team (see example below). 
 
-![VB app example](Tutorial/VB app.png)
+![VB app example](shiny-vertical-jump/Tutorial/VB app.png?raw=true)
 
-![MBB app example](Tutorial/MBB app.png)  
+![MBB app example](shiny-vertical-jump/Tutorial/MBB app.png?raw=true)  
 
 If you decide to have multiple copies of the app.R file, be sure to load the correct one by selecting it in the file viewer pane in the bottom right-hand corner of your R Studio environment.
 
-![](Tutorial/app location.png)
+![](shiny-vertical-jump/Tutorial/app location.png?raw=true)
 
 I normally get around this by having a different project for each team. You can create new projects by selecting your project's name > New Project and following the prompts to add a new project file.
 
-![New project](Tutorial/New project 1.png) 
+![New project](shiny-vertical-jump/Tutorial/New project 1.png?raw=true) 
 
-![New folder](Tutorial/New project 2.png) 
+![New folder](shiny-vertical-jump/Tutorial/New project 2.png?raw=true) 
 
-![Project type](Tutorial/New project 3.png) 
+![Project type](shiny-vertical-jump/Tutorial/New project 3.png?raw=true) 
 
-![Project name](Tutorial/New project 4.png) 
+![Project name](shiny-vertical-jump/Tutorial/New project 4.png?raw=true) 
 
 Again, you only have to follow these steps if you have multiple copies of the app.R file dedicated to different teams. If you only have a single copy of the file, don't worry about creating a new directory, etc. Just open the app.R file in your current R studio project / environment. 
 
 The app can be run by either pressing ctrl + shift + enter or by pressing the 'Run App' button that appears. If you don't see the 'Run App' button, you're likely running an old version of R studio that doesn't support Shiny applications.
 
-![Run app](Tutorial/Run app.png)
+![Run app](shiny-vertical-jump/Tutorial/Run app.png?raw=true)
 
 ## Preparing your data
 
@@ -61,7 +61,7 @@ Avoid names starting with 'Force,' as Capstone names each of the force beams (2-
 
 Below is an example our our Capstone data collection dashboard. You can see it's pretty cluttered. Graphs of the normal forces are all you really need, but I like to have this other information available to the athletes after each jump. These digit widgets also help me determine if an athlete needs to perform additional trials if the values are inconsistent from one trial to the next.
 
-![Dashboard example](Tutorial/Capstone dashboard.png)
+![Dashboard example](shiny-vertical-jump/Tutorial/Capstone dashboard.png?raw=true)
 
 If you've used Capstone before, you know each sensor data variable and all calculated variables are exported during the data export. For instance, our export includes 19 columns per trial (ignore Force Left and Force Right on the top left; six individual variables per plate plus six additional calculated variables plus a time column). This is why the 
 ```
@@ -69,6 +69,6 @@ jump.data <- dplyr::select(jump.data, dplyr::starts_with('Normal'))
 ```
 bit above is central to the code functioning correctly.
 
-![Data fields](Tutorial/Capstone data summary.png)
+![Data fields](shiny-vertical-jump/Tutorial/Capstone data summary.png?raw=true)
 
-![Capstone export](Tutorial/Capstone export.png)
+![Capstone export](shiny-vertical-jump/Tutorial/Capstone export.png?raw=true)
