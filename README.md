@@ -15,7 +15,7 @@ Once installed, you'll need several packages that are dependencies for the code 
 
 Once you have R and all the required packages, you can download the app as a .zip folder (click the green 'Clone or download' button on GitHub and select 'Download ZIP') or manually copy the [raw code](https://raw.githubusercontent.com/mattsams89/shiny-vertical-jump/master/app.R) to a new R script file (see below).
 
-![New file](Tutorial/New script file.png)  
+![New file](Tutorial/New script file.png?raw=true)  
 
 If you download the app as a .zip, you'll need to extract the app.R file. Importantly, wherever the app.R file is stored will determine where the analysis files are created. So regardless of whether you download the .zip file or manually copy the code, be sure to save the file to the correct directory. For instance, if you work with several teams and want to keep their data separate you might save a copy of the app to folders for each team (see example below). 
 
