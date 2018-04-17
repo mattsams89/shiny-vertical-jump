@@ -103,7 +103,7 @@ You have the following in the left-hand panel:
 6. A dropdown for different filters  
     None, 2nd order 10 Hz Butterworth, and 10-point SMA available by default  
     Other filters can be written to suit your needs
-7. A trial selector
+7. A trial selector  
     Use the up/down arrows on this box or type in a new number to go to that trial  
     The box will not allow you to enter a number greater than the total number of trials  
 8. A dropdown for different bar loads  
