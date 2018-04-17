@@ -354,11 +354,11 @@ shiny::shinyApp(
             #Be sure you always collect force plate A/1 as the left leg and force plate B/2 as the right leg, or
             #you will get some very confusing values
             shiny::fluidRow(
-              shiny::column(4, shiny::tags$u(h2('Left leg'))),
+              shiny::column(4, shiny::tags$u(shiny::h2('Left leg'))),
               
-              shiny::column(4, shiny::tags$u(h2('Right leg'))),
+              shiny::column(4, shiny::tags$u(shiny::h2('Right leg'))),
               
-              shiny::column(4, shiny::tags$u(h2('% symmetry index')))
+              shiny::column(4, shiny::tags$u(shiny::h2('% symmetry index')))
             ),
             
             shiny::fluidRow(
