@@ -5,6 +5,7 @@ Imports:
   dplyr,
   ggplot2,
   MESS,
+  purrr,
   shiny,
   shinythemes,
   signal,
@@ -15,7 +16,7 @@ Description: This Shiny app is geared toward strength and conditioning professio
   force-time data in Excel (we've all been there). This allows for more power analysis than just simply
   jump height, peak force, etc. Additionally, this app is publicly available to take the cover off the black
   box that is force-time data analysis. A consistent set of filtering, plotting, and variable calculation functions
-  allow for consistent analysis procedures between users. Importantly, this app is only designed to analyze data 
+  allow for common analysis procedures between users. Importantly, this app is only designed to analyze data 
   from dual PASCO force plates. Users are welcome to create forks that are compatible with other force platforms.
 License: GPL-3
 BugReports: https://github.com/mattsams89/shiny-vertical-jump/issues
