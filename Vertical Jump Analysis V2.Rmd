@@ -126,9 +126,27 @@ observeEvent(input$save_trial, {
 ```
 
 ```{r data_manipulation, echo=FALSE}
+jump_information$trial_brush <- NULL # Required for plot brushing and resetting on the next line
+# Without this observer, the app retains the last plot brush, which leads to incorrect/erroneous data selection
+# and crashes if the selection falls outside the data available
 observe({
+  if(is.null(event_data(source = "plot_brush", event = "plotly_brushed")$x))
+    jump_information$trial_brush <- NULL
+  else
+    jump_information$trial_brush <- round(event_data(source = "plot_brush", event = "plotly_brushed")$x * 1000, 0)
+})
+# Re-runs on newly uploaded data or when selecting a new trial
+observeEvent({
+  jump_information$data
+  input$trial_number
+},
+{
   req(jump_information$data)
   req(input$trial_number) # Prevents crashes from clearing the "Select Trial" input
+  
+  if(!is.null(jump_information$trial_brush)){
+    jump_information$trial_brush <- NULL
+  }
   
   data <- jump_information$data
   selected_trial <- input$trial_number
@@ -178,6 +196,11 @@ observe({
   threshold <- 10 # Threshold for takeoff and landing; adjust accordingly
   sampling_frequency <- input$sampling_frequency
   data <- jump_information$trial_data
+  if(!is.null(jump_information$trial_brush)){ # Checks if you've brushed the full trial plot
+    trial_brush <- jump_information$trial_brush # If so, constrains the data to your selection
+    data <- data[trial_brush[1]:trial_brush[2]]
+  }
+  
   # Finds primary "changepoints" or breakpoints in the data; points where the mean changes for a minimum of 200 ms
   # In theory, this could find quiet standing, jump initiation, peak force, flight, and landing, but is a little too unreliable for my taste
   # Instead, the changepoints are bound together into sequential pairs and the pair with the lowest average force between them is identified
@@ -392,26 +415,47 @@ Column
 ### Full Trial
 ```{r}
 renderPlotly({
-  req(jump_information$offset_data)
+  req(jump_information$trial_data)
   
   sampling_frequency <- input$sampling_frequency
-  offset_data <- jump_information$offset_data
-  offset_data[, time := 1:nrow(offset_data)][, time := time / sampling_frequency]
+  trial_data <- jump_information$trial_data
+  trial_data[, time := 1:nrow(trial_data)][, time := time / sampling_frequency]
   
-  plot_ly(offset_data, x = ~time) %>%
+  trial_plot <-plot_ly(trial_data, x = ~time, source = "plot_brush") %>%
     add_lines(y = ~fp1,
               name = "FP1") %>%
     add_lines(y = ~fp2,
               name = "FP2") %>%
     add_lines(y = ~total_force,
               name = "Total Force") %>%
-    layout(xaxis = list(title = "Time"),
-           yaxis = list(title = "Force"),
-           shapes = list(vline(jump_information$peak_force_index / sampling_frequency),
+    layout(xaxis = list(title = "Time", fixedrange = TRUE),
+           yaxis = list(title = "Force", fixedrange = TRUE),
+           dragmode = "select")
+})
+```
+
+### Relevant Time Points
+```{r}
+renderPlotly({
+  req(jump_information$offset_data)
+  
+  sampling_frequency <- input$sampling_frequency
+  trial_data <- jump_information$offset_data
+  trial_data[, time := 1:nrow(trial_data)][, time := time / sampling_frequency]
+  
+  plot_ly(trial_data, x = ~time) %>%
+    add_lines(y = ~fp1,
+              name = "FP1") %>%
+    add_lines(y = ~fp2,
+              name = "FP2") %>%
+    add_lines(y = ~total_force,
+              name = "Total Force") %>%
+    layout(shapes = list(vline(jump_information$jump_start_index / sampling_frequency),
+                         vline(jump_information$peak_force_index / sampling_frequency),
                          vline(jump_information$takeoff_index / sampling_frequency),
-                         vline(jump_information$landing_index / sampling_frequency),
-                         vline(jump_information$peak_landing_force_index / sampling_frequency),
-                         vline(jump_information$jump_start_index / sampling_frequency)))
+                         vline(jump_information$landing_index / sampling_frequency)),
+           xaxis = list(title = "Time"),
+           yaxis = list(title = "Force (N)"))
 })
 ```
 
