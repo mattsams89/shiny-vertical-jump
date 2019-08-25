@@ -77,7 +77,7 @@ But trials that look like this are a problem:
 
 In the latter case, you can "brush" the top plot by clicking and dragging across the plot.
 
-![](/Tutorial/brushed-plot.png)
+![](/Tutorial/brushed_plot.png)
 
 The height of your brush doesn't matter; only the X-axis coordinates of the brush are used to update the trial information. For best results, grab at least half a second of quiet standing at the start and end at any point after landing but before the athlete steps off the force plates.
 
