@@ -10,7 +10,6 @@ An open-source solution for vertical jump analysis
 * [Wrapping up](#wrapping-up)
 
 ## What is this?
-**_This Readme is currently out of date._**
 This Shiny app is geared toward strength and conditioning professionals and researchers who can't afford vertical jump analysis software and those who don't have the coding knowledge to design their own analyses. It's my hope these individuals will have an alternative to analyzing their force-time data in Excel (we've all been there). This allows for more powerful analysis than just simply jump height, peak force, etc. Additionally, this app is publicly available to take the cover off the black box that is force-time data analysis. A set of visible filtering, plotting, and variable calculation functions allow for consistent analysis procedures between users. 
 
 Importantly, this app is only designed to analyze data from dual PASCO force plates or datasets that closely mimic the PASCO .txt or .csv export. Users are welcome to create forks that are compatible with other formats. This app is published under the GNU GPL-3 license; you're free to use, modify, and share the source code and your own modified code as long as you release your modification(s) under the same license. See [this site](https://resources.whitesourcesoftware.com/blog-whitesource/top-10-gpl-license-questions-answered) for a plain-English explanation of GPL-3.
