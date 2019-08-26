@@ -63,7 +63,7 @@ total_data <- lapply(1:trials, function(x){
   peak_landing_force_index <- which.max(trial_data[offset_range[2]:nrow(trial_data), total_force]) + offset_range[2] - 1
   
   if(trial_data[1:100, mean(total_force)] < 440){
-    start_index <- detect_index(trial_data[, total_force], ~ .x >= 450)
+    start_index <- detect_index(trial_data[, total_force], ~ .x >= 440)
     trial_data <- trial_data[start_index:nrow(trial_data)]
     
     peak_force_index <- peak_force_index - start_index
