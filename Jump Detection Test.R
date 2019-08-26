@@ -13,14 +13,19 @@ test_data <- fread(file.choose(),
                    header = TRUE,
                    na.strings = c("", "NA"),
                    stringsAsFactors = FALSE)
-test_data <- test_data[, grepl("Normal", names(test_data)), 
+
+test_data <- test_data[, grepl("Normal", 
+                               names(test_data)), 
                        with = FALSE]
 
 trials <- ncol(test_data) / 2
 
 total_data <- lapply(1:trials, function(x){
-  fp1 <- test_data[, (x * 2 - 1), with = FALSE] * 1 + 0 # Replace
-  fp2 <- test_data[, (x * 2), with = FALSE] * 1 + 0 # Replace
+  fp1 <- test_data[, (x * 2 - 1), 
+                   with = FALSE] * 1 + 0 # Replace
+  
+  fp2 <- test_data[, (x * 2), 
+                   with = FALSE] * 1 + 0 # Replace
   
   trial_data <- data.table(fp1, fp2)[, setnames(.SD, c("fp1", "fp2"))
                                      ][, na.omit(.SD)]
@@ -41,18 +46,41 @@ total_data <- lapply(1:trials, function(x){
     trial_data[, total_force := fp1 + fp2]
   }
   
-  mean_changepoints <- cpt.mean(trial_data[, total_force], method = "BinSeg", minseglen = round(200 * (sampling_frequency / 1000)), Q = 5, class = FALSE)
-  mean_changepoints <- data.table(cbind(cp1 = c(0, mean_changepoints[-6]), cp2 = mean_changepoints))
+  if(trial_data[1:250, mean(total_force)] < 440){
+    start_index <- detect_index(trial_data[, total_force], ~ .x >= 440)
+    
+    trial_data <- trial_data[start_index:nrow(trial_data)]
+  }
+  
+  if(trial_data[trial_data[, tail(.I, 250)], mean(total_force)] < 440){
+    end_index <- detect_index(trial_data[, total_force], ~ .x >= 440, .dir = "backward")
+    
+    trial_data <- trial_data[1:end_index]
+  }
+  
+  mean_changepoints <- cpt.mean(trial_data[, total_force], 
+                                method = "BinSeg", 
+                                minseglen = round(200 * (sampling_frequency / 1000)), 
+                                Q = 5, 
+                                class = FALSE)
+  
+  mean_changepoints <- data.table(cbind(cp1 = c(0, mean_changepoints[-6]), 
+                                        cp2 = mean_changepoints))
   
   landing <- trial_data[, which.max(c(0, diff(total_force)))]
+  
   closest <- which.min(abs(mean_changepoints$cp2 - landing))
   
   offset_range <- mean_changepoints[closest, c(cp1, cp2)]
+  
   offset_length <- round(diff(offset_range) * 0.25)
+  
   offset_range[1] <- offset_range[1] + offset_length
+  
   offset_range[2] <- offset_range[2] - offset_length
   
   fp1_offset <- trial_data[1:nrow(trial_data) %between% c(offset_range[1], offset_range[2]), mean(fp1)]
+  
   fp2_offset <- trial_data[1:nrow(trial_data) %between% c(offset_range[1], offset_range[2]), mean(fp2)]
   
   trial_data[, ":=" (fp1 = fp1 - fp1_offset,
@@ -60,18 +88,17 @@ total_data <- lapply(1:trials, function(x){
              ][, total_force := fp1 + fp2]
   
   peak_force_index <- which.max(trial_data[1:offset_range[1], total_force])
+  
   peak_landing_force_index <- which.max(trial_data[offset_range[2]:nrow(trial_data), total_force]) + offset_range[2] - 1
   
-  if(trial_data[1:100, mean(total_force)] < 440){
-    start_index <- detect_index(trial_data[, total_force], ~ .x >= 440)
-    trial_data <- trial_data[start_index:nrow(trial_data)]
-    
-    peak_force_index <- peak_force_index - start_index
-    peak_landing_force_index <- peak_landing_force_index - start_index
-  }
+  var_changepoints <- cpt.var(trial_data[1:peak_force_index, total_force], 
+                              method = "BinSeg", 
+                              minseglen = round(500 * (sampling_frequency / 1000)), 
+                              Q = 5, 
+                              class = FALSE)
   
-  var_changepoints <- cpt.var(trial_data[1:peak_force_index, total_force], method = "BinSeg", minseglen = round(500 * (sampling_frequency / 1000)), Q = 5, class = FALSE)
-  var_changepoints <- data.table(cbind(cp1 = c(0, var_changepoints[-6]), cp2 = var_changepoints))
+  var_changepoints <- data.table(cbind(cp1 = c(0, var_changepoints[-6]), 
+                                       cp2 = var_changepoints))
   
   most_stable_var_changepoint <- trial_data[, list(lapply(1:6, function(x) trial_data[1:nrow(trial_data) %between% var_changepoints[x, .(cp1, cp2)],
                                                                                       sd(total_force)]))
@@ -79,4 +106,3 @@ total_data <- lapply(1:trials, function(x){
   
   trial_data <- trial_data[var_changepoints[most_stable_var_changepoint, cp1]:nrow(trial_data)]
 })
-
