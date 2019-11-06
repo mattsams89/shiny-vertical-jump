@@ -1,22 +1,25 @@
 Title: Shiny Vertical Jump Analysis
 Author@R: person('Matt', 'Sams', email = 'matt.l.sams@gmail.com', role = c('aut','cre'))
 Imports:
+  changepoint,
   data.table,
-  dplyr,
-  ggplot2,
-  MESS,
+  kableExtra,
+  knitr,
+  plotly,
+  pracma,
   purrr,
   shiny,
-  shinythemes,
+  shinydashboard,
+  shinyjs,
   signal,
-  TTR
+  zoo
+
 Description: This Shiny app is geared toward strength and conditioning professionals and researchers
   who can't afford vertical jump analysis software and those who don't have the coding knowledge to
   design their own analyses. It's my hope these individuals will have an alternative to analyzing their
-  force-time data in Excel (we've all been there). This allows for more power analysis than just simply
+  force-time data in Excel (we've all been there). This allows for more powerful analysis than just simply
   jump height, peak force, etc. Additionally, this app is publicly available to take the cover off the black
   box that is force-time data analysis. A consistent set of filtering, plotting, and variable calculation functions
-  allow for common analysis procedures between users. Importantly, this app is only designed to analyze data 
-  from dual PASCO force plates. Users are welcome to create forks that are compatible with other force platforms.
+  allow for common analysis procedures between users.
 License: GPL-3
 BugReports: https://github.com/mattsams89/shiny-vertical-jump/issues
