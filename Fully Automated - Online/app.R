@@ -406,7 +406,9 @@ server <- function(input, output, session){
     
     peak_power_index <- jump_data[, which.max(power)]
     
-    flight_time <- (landing_index - takeoff_index) / sampling_frequency
+    # Landing index and takeoff index represent the first and last points the athlete is on the plates, respectively;
+    # To only capture the time between these points, we need to subtract an additional index value before dividing by the sampling frequency
+    flight_time <- (landing_index - takeoff_index - 1) / sampling_frequency
     net_impulse <- jump_data[, last(net_impulse)]
     jump_height_ft <- 0.5 * 9.81 * (flight_time / 2) ^ 2
     takeoff_velocity <- jump_data[, last(velocity)]
