@@ -486,7 +486,7 @@ server <- function(input, output, session){
       
       zero_velo_index <- detect_index(jump_data[, velocity],
                                       ~ .x <= 0,
-                                      .dir = "backward")
+                                      .dir = "backward") + 1
       
       force_zero_velo <- jump_data[zero_velo_index,
                                    total_force]
@@ -510,7 +510,7 @@ server <- function(input, output, session){
     plot_data <- jump_information$metric_data$plot_data
     sampling_frequency <- jump_information$metric_data$sampling_frequency
     unweight_end_index <- round(jump_information$metric_data$metric_table$unweight_duration * sampling_frequency)
-    braking_end_index <- round(jump_information$metric_data$metric_table$braking_duration * sampling_frequency) + unweight_end_index - 1
+    braking_end_index <- round(jump_information$metric_data$metric_table$braking_duration * sampling_frequency) + unweight_end_index
     
     if(jump_type == "sj"){
       force_plot <- plot_ly(plot_data,
