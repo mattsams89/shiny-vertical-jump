@@ -140,7 +140,7 @@ data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_
       # so we need to do a little work to determine which peaks are actually associated with takeoff and landing.
       # We do that by counting the number of points below 10N and removing any pair not between 202 and 903 ms,
       # equivalent to jh_ft of 5cm and 100cm. In theory, this should remove points where the athlete unloads during the unweighting phase
-      # or steps of the plates / falls off the plates at the end of a trial.
+      # or steps off the plates / falls off the plates at the end of a trial.
       data_peaks <- trial_data[, as.data.table(findpeaks(total_force,
                                                          minpeakdistance = round(500 * (sampling_frequency / 1000)),
                                                          minpeakheight = max(c(max(fp1), max(fp2))) * 0.4))
@@ -483,6 +483,7 @@ data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_
       peak_force_index <- round(4000 * (sampling_frequency / 1000))
       
       # And peak landing force is always half a second from the end of the trial
+      # Note to self: Not an OOP error.
       peak_landing_force_index <- round(nrow(trial_data) - 500 * (sampling_frequency / 1000))
       
       #### From here, things go back to normal. The names of some points are a little different now, but
@@ -585,3 +586,29 @@ sj_table_headers <- c("Body Mass", "Flight Time", "Net Impulse", "Jump Height (F
 
 cmj_table_headers <- c(sj_table_headers, "Unweighting Duration", "Braking Duration", "Concentric Duration",
                        "Force @ Zero Velo")
+
+save_headers <- c("date",
+                  "name",
+                  "jump_type",
+                  "trial_number",
+                  "bar_load",
+                  cmj_table_headers)
+
+save_function <- function(data_to_write){
+  
+  if(!dir.exists("Analyses"))
+    dir.create("Analyses")
+  
+  save_file <- file.path("Analyses",
+                         paste(Sys.Date(),
+                               "Vertical Jump Analysis.csv"))
+  
+  if(!file.exists(save_file)){
+    fwrite(transpose(list(save_headers)), 
+           save_file)
+  }
+  
+  fwrite(data_to_write, 
+         save_file, 
+         append = TRUE)
+}

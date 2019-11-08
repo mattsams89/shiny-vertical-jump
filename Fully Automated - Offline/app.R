@@ -307,10 +307,7 @@ server <- function(input, output, session){
   })
   
   output$secondary_plot <- renderPlotly({
-    req(jump_information$analysis_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$analysis_data)
     
     data <- jump_information$analysis_data$analysis_force_data
     jump_type <- jump_information$analysis_data$jump_type
@@ -382,10 +379,7 @@ server <- function(input, output, session){
   })
   
   observe({
-    req(jump_information$analysis_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$analysis_data)
     
     data <- jump_information$analysis_data$analysis_force_data
     jump_type <- jump_information$analysis_data$jump_type
@@ -510,10 +504,7 @@ server <- function(input, output, session){
   })
   
   output$metric_plot <- renderPlotly({
-    req(jump_information$metric_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$metric_data)
     
     jump_type <- jump_information$metric_data$metric_table$jump_type
     plot_data <- jump_information$metric_data$plot_data
@@ -703,10 +694,7 @@ server <- function(input, output, session){
   })
   
   output$metric_table <- function(){
-    req(jump_information$metric_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$metric_data)
     
     table_data <- jump_information$metric_data$metric_table
     jump_type <- table_data[, jump_type]
@@ -753,6 +741,16 @@ server <- function(input, output, session){
       scroll_box(width = "100%",
                  height = "750px")
   }
+  
+  observeEvent(input$save_trial, {
+    req(jump_information$metric_data)
+    
+    save_function(data_to_write = jump_information$metric_data$metric_table)
+    
+    showNotification(ui = "Trial Saved Successfully!", 
+                     duration = 2, 
+                     type = "message")
+  })
 }
 
 shinyApp(ui, server)

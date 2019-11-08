@@ -1,0 +1,13 @@
+name: Fully_Automated
+title: Fully_Automated
+username:
+account: mattsams89
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1439936
+bundleId: 2574909
+url: https://mattsams89.shinyapps.io/Fully_Automated/
+when: 1573246070.22246
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: Analyses/2019-11-08 Vertical Jump Analysis.csv
