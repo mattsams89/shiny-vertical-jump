@@ -36,6 +36,11 @@ file_parser <- function(file_location, upload_type){
   
   if(upload_type == "Pasco"){
     
+    decimal_check <- sum(fread(file = file_location,
+                               skip = 1,
+                               header = TRUE,
+                               nrows = 1)[1] %like% ",")
+    
     data <- fread(file = file_location,
                   skip = 1,
                   header = TRUE,
@@ -46,18 +51,26 @@ file_parser <- function(file_location, upload_type){
                          names(data)),
                  with = FALSE]
     
-    return(data)
+    if(decimal_check > 0)
+      data <- data[, lapply(.SD, function(x) as.numeric(sub(",", ".", x, fixed = TRUE)))]
     
+    return(data)
   } 
   else {
+    
+    decimal_check <- sum(fread(file = file_location,
+                               header = TRUE,
+                               nrows = 1)[1] %like% ",")
     
     data <- fread(file = file_location,
                   header = TRUE,
                   na.strings = c("", "NA"),
                   stringsAsFactors = FALSE)
     
-    return(data)
+    if(decimal_check > 0)
+      data <- data[, lapply(.SD, function(x) as.numeric(sub(",", ".", x, fixed = TRUE)))]
     
+    return(data)
   }
 }
 
