@@ -351,7 +351,7 @@ server <- function(input, output, session){
         else{
           jump_start_index <- detect_index(data[1:pre_movement_maximum_force_index, total_force],
                                            ~ .x <= inverse_threshold,
-                                           .dir = "backward") - 29
+                                           .dir = "backward") - round(0.029 * sampling_frequency)
         }
       }
       else{
@@ -362,7 +362,7 @@ server <- function(input, output, session){
                                            .dir = "backward") + 1
         }
         else{
-          jump_start_index <- jump_threshold_index - 29
+          jump_start_index <- jump_threshold_index - round(0.029 * sampling_frequency)
         }
       }
     }
