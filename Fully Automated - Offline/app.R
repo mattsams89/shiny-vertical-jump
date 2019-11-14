@@ -310,6 +310,11 @@ server <- function(input, output, session){
                                            ~ .x >= inverse_threshold,
                                            .dir = "backward") - round(0.029 * sampling_frequency)
         }
+        
+        showNotification(ui = "SJ detected with countermovement > 5SD body weight!", 
+                         duration = 5, 
+                         closeButton = FALSE, 
+                         type = "warning")
       }
       else{
         

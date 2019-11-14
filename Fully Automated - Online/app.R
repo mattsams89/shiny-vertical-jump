@@ -325,6 +325,11 @@ server <- function(input, output, session){
           jump_start_index <- jump_threshold_index - round(0.029 * sampling_frequency)
         }
       }
+      
+      showNotification(ui = "SJ detected with countermovement > 5SD body weight!", 
+                       duration = 5, 
+                       closeButton = FALSE, 
+                       type = "warning")
     }
     else{
       initiation_threshold <- body_weight - body_weight_sd * 5
