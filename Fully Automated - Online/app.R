@@ -71,7 +71,7 @@ body <- dashboardBody(
     ),
     splitLayout(
       numericInput(inputId = "bar_load",
-                   label = "Enter Bar Load (If Any)",
+                   label = "Enter Bar Load",
                    value = 0),
       selectInput(inputId = "start_index",
                   label = "Jump Start Location",
