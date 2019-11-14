@@ -597,8 +597,11 @@ sj_table_headers <- c("Body Mass", "Flight Time", "Net Impulse", "Jump Height (F
                       "FP1 Time to Peak Force", "FP2 Time to Peak Force",
                       "Time to Peak Force SI", "FP1 Avg RFD", "FP2 Avg RFD", "Avg RFD SI")
 
-cmj_table_headers <- c(sj_table_headers, "Unweighting Duration", "Braking Duration", "Concentric Duration",
-                       "Force @ Zero Velo")
+cmj_table_headers <- c(sj_table_headers, "Unweighting Duration", "Braking Duration", "Propulsive Duration",
+                       "Peak Braking Force", "Avg Braking Force", "Min Braking Velocity", "Avg Braking Velocity",
+                       "Peak Braking Power", "Avg Braking Power", "Braking Work", "Force @ Zero Velo",
+                       "Peak Propulsive Force", "Avg Propulsive Force", "Peak Propulsive Velocity", "Avg Propulsive Velocity",
+                       "Peak Propulsive Power", "Avg Propulsive Power", "Propulsive Work")
 
 save_headers <- c("date",
                   "name",

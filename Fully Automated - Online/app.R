@@ -69,9 +69,16 @@ body <- dashboardBody(
                               "Squat Jump" = "sj",
                               "Countermovement Jump" = "cmj"))
     ),
-    numericInput(inputId = "bar_load",
-                 label = "Enter Bar Load (If Any)",
-                 value = 0),
+    splitLayout(
+      numericInput(inputId = "bar_load",
+                   label = "Enter Bar Load (If Any)",
+                   value = 0),
+      selectInput(inputId = "start_index",
+                  label = "Jump Start Location",
+                  choices = c("5SD - BW",
+                              "5SD - 30ms"),
+                  multiple = FALSE)
+    ),
     splitLayout(
       numericInput(inputId = "sampling_frequency",
                    label = "Sampling Frequency",
@@ -265,29 +272,102 @@ server <- function(input, output, session){
     fp1_weight <- data[1:quiet_standing_length, mean(fp1)]
     fp2_weight <- data[1:quiet_standing_length, mean(fp2)]
     
-    minimum_force <- data[minimum_force_index, total_force]
+    minimum_force <- data[1:peak_force_index, min(total_force)]
     
-    if(input$jump_type == "auto")
+    if(input$jump_type == "auto"){
       if(body_weight - minimum_force > 250)
         jump_type <- "cmj"
-    else
-      jump_type <- "sj"
+      else
+        jump_type <- "sj"
+    }
     else
       jump_type <- input$jump_type
     
     if(jump_type == "sj"){
       initiation_threshold <- body_weight + body_weight_sd * 5
       
-      jump_start_index <- detect_index(data[1:peak_force_index, total_force],
-                                       ~ .x <= initiation_threshold,
-                                       .dir = "backward") - round(29 * (sampling_frequency / 1000))
+      inverse_threshold <- body_weight - body_weight_sd * 5
+      
+      jump_threshold_index <- detect_index(data[1:peak_force_index, total_force],
+                                           ~ .x <= initiation_threshold,
+                                           .dir = "backward")
+      
+      # Dealing with a countermovement at the start of the SJ
+      if(sum(data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
+                  min(total_force)] <= inverse_threshold) > 0){
+        
+        pre_movement_minimum_force <- data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
+                                           min(total_force)]
+        
+        pre_movement_minimum_force_index <- detect_index(data[1:jump_threshold_index, total_force],
+                                                         ~ .x == pre_movement_minimum_force,
+                                                         .dir = "backward")
+        
+        if(input$start_index == "5SD - BW"){
+          jump_start_index <- detect_index(data[1:pre_movement_minimum_force_index, total_force],
+                                           ~ .x >= body_weight,
+                                           .dir = "backward") + 1
+        }
+        else{
+          jump_start_index <- detect_index(data[1:pre_movement_minimum_force_index, total_force],
+                                           ~ .x >= inverse_threshold,
+                                           .dir = "backward") - 29
+        }
+      }
+      else{
+        
+        if(input$start_index == "5SD - BW"){
+          jump_start_index <- detect_index(data[1:jump_threshold_index, total_force],
+                                           ~ .x <= body_weight,
+                                           .dir = "backward") + 1
+        }
+        else{
+          jump_start_index <- jump_threshold_index - 29
+        }
+      }
     }
     else{
       initiation_threshold <- body_weight - body_weight_sd * 5
       
-      jump_start_index <- detect_index(data[1:minimum_force_index, total_force],
-                                       ~ .x >= initiation_threshold,
-                                       .dir = "backward") - round(29 * (sampling_frequency / 1000))
+      inverse_threshold <- body_weight + body_weight_sd * 5
+      
+      jump_threshold_index <- detect_index(data[1:minimum_force_index, total_force],
+                                           ~ .x >= initiation_threshold,
+                                           .dir = "backward")
+      
+      # Same idea as above SJ countermovement detection; meant to check if there's an increase in force prior to the unweighting phase of the CMJ
+      if(sum(data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
+                  max(total_force)] >= inverse_threshold) > 0){
+        
+        pre_movement_maximum_force <- data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
+                                           max(total_force)]
+        
+        pre_movement_maximum_force_index <- detect_index(data[1:jump_threshold_index, total_force],
+                                                         ~ .x == pre_movement_maximum_force,
+                                                         .dir = "backward")
+        
+        if(input$start_index == "5SD - BW"){
+          jump_start_index <- detect_index(data[1:pre_movement_maximum_force_index, total_force],
+                                           ~ .x <= body_weight,
+                                           .dir = "backward") + 1
+        }
+        else{
+          jump_start_index <- detect_index(data[1:pre_movement_maximum_force_index, total_force],
+                                           ~ .x <= inverse_threshold,
+                                           .dir = "backward") - 29
+        }
+      }
+      else{
+        
+        if(input$start_index == "5SD - BW"){
+          jump_start_index <- detect_index(data[1:jump_threshold_index, total_force],
+                                           ~ .x >= body_weight,
+                                           .dir = "backward") + 1
+        }
+        else{
+          jump_start_index <- jump_threshold_index - 29
+        }
+      }
     }
     
     jump_information$analysis_data <- list(analysis_force_data = data,
@@ -300,6 +380,7 @@ server <- function(input, output, session){
                                            jump_type = jump_type,
                                            sampling_frequency = sampling_frequency,
                                            initiation_threshold = initiation_threshold,
+                                           jump_threshold_index = jump_threshold_index,
                                            jump_start_index = jump_start_index,
                                            minimum_force_index = minimum_force_index,
                                            peak_force_index = peak_force_index,
@@ -318,6 +399,7 @@ server <- function(input, output, session){
     body_weight_sd <- jump_information$analysis_data$body_weight_sd
     body_mass <- jump_information$analysis_data$body_mass
     initiation_threshold <- jump_information$analysis_data$initiation_threshold
+    jump_threshold_index <- jump_information$analysis_data$jump_threshold_index
     jump_start <- jump_information$analysis_data$jump_start_index
     peak_force <- jump_information$analysis_data$peak_force_index
     flight_threshold <- jump_information$analysis_data$flight_threshold
@@ -347,6 +429,7 @@ server <- function(input, output, session){
                       yref = "paper",
                       showarrow = FALSE) %>%
       layout(shapes = list(vline(jump_start),
+                           vline(jump_threshold_index),
                            vline(peak_force),
                            vline(takeoff),
                            vline(landing),
@@ -356,14 +439,14 @@ server <- function(input, output, session){
                                 line = list(color = "blue"),
                                 opacity = 0.3,
                                 x0 = 1,
-                                x1 = jump_start,
+                                x1 = jump_threshold_index,
                                 xref = "x",
                                 y0 = body_weight - body_weight_sd * 5,
                                 y1 = body_weight + body_weight_sd * 5),
                            list(type = "line",
                                 line = list(color = "red"),
                                 x0 = 1,
-                                x1 = jump_start,
+                                x1 = jump_threshold_index,
                                 xref = "x",
                                 y0 = initiation_threshold,
                                 y1 = initiation_threshold,
@@ -487,7 +570,7 @@ server <- function(input, output, session){
       
       unweight_duration <- unweight_end_index / sampling_frequency
       braking_duration <- (braking_end_index - unweight_end_index) / sampling_frequency
-      concentric_duration <- (nrow(jump_data) - braking_end_index) / sampling_frequency
+      propulsive_duration <- (nrow(jump_data) - braking_end_index) / sampling_frequency
       
       zero_velo_index <- detect_index(jump_data[, velocity],
                                       ~ .x <= 0,
@@ -496,11 +579,41 @@ server <- function(input, output, session){
       force_zero_velo <- jump_data[zero_velo_index,
                                    total_force]
       
+      # Additional variables suggested by Lake et al. (in preparation)
+      peak_braking_force <- jump_data[(unweight_end_index + 1):braking_end_index, max(total_force)]
+      avg_braking_force <- jump_data[(unweight_end_index + 1):braking_end_index, mean(total_force)]
+      min_braking_velocity <- jump_data[(unweight_end_index + 1):braking_end_index, min(velocity)]
+      avg_braking_velocity <- jump_data[(unweight_end_index + 1):braking_end_index, mean(velocity)]
+      peak_braking_power <- jump_data[(unweight_end_index + 1):braking_end_index, min(power)]
+      avg_braking_power <- jump_data[(unweight_end_index + 1):braking_end_index, mean(power)]
+      braking_work <- avg_braking_power * braking_duration
+      peak_propulsive_force <- jump_data[(braking_end_index + 1):nrow(jump_data), max(total_force)]
+      avg_propulsive_force <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(total_force)]
+      peak_propulsive_velocity <- jump_data[(braking_end_index + 1):nrow(jump_data), max(velocity)]
+      avg_propulsive_velocity <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(velocity)]
+      peak_propulsive_power <- jump_data[(braking_end_index + 1):nrow(jump_data), max(power)]
+      avg_propulsive_power <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(power)]
+      propulsive_work <- avg_propulsive_power * propulsive_duration
+      
       metric_table <- cbind(metric_table,
                             unweight_duration,
                             braking_duration,
-                            concentric_duration,
-                            force_zero_velo)
+                            propulsive_duration,
+                            peak_braking_force,
+                            avg_braking_force,
+                            min_braking_velocity,
+                            avg_braking_velocity,
+                            peak_braking_power,
+                            avg_braking_power,
+                            braking_work,
+                            force_zero_velo,
+                            peak_propulsive_force,
+                            avg_propulsive_force,
+                            peak_propulsive_velocity,
+                            avg_propulsive_velocity,
+                            peak_propulsive_power,
+                            avg_propulsive_power,
+                            propulsive_work)
     }
     
     jump_information$metric_data <- list(plot_data = jump_data,
@@ -738,7 +851,7 @@ server <- function(input, output, session){
       output_table <- output_table %>%
         pack_rows("Phase Variables", 
                   28, 
-                  31, 
+                  45, 
                   label_row_css = "background-color: #004687; color: #fff;")
     }
     
