@@ -1,5 +1,7 @@
 source("global.R")
 
+# We start with the layout of the app. Layout elements are contained in the header, sidebar, and body; these are auto-translated to HTML/CSS via Shiny.
+# The majority of elements will remain uncommented, as their uses are relatively straightforward.
 header <- dashboardHeader(title = "Vertical Jump Analysis",
                           titleWidth = 250)
 
@@ -7,6 +9,10 @@ sidebar <- dashboardSidebar(
   disable = TRUE
 )
 
+# The only exception to what I said above is here. If you've never seen HTML, the below is used to change the layout and color of the app a bit.
+# If you'd like to change the colors to your team/school colors, look up the hex codes via your organization's color palette standards and replace
+# 004687 with the respective values. If you'd like to change the color of "Vertical Jump Analysis", too, add a line below background-color:#004687;
+# with color:#XXXXXX; based on whatever color you'd like to change it to.
 body <- dashboardBody(
   useShinyjs(),
   tags$head(
@@ -20,9 +26,6 @@ body <- dashboardBody(
             }
             .skin-blue .main-header .navbar {
                 background-color:#004687;
-            }
-            .skin-blue .main-header .navbar .sidebar-toggle:hover {
-                background-color:#BD9B60;
             }
             .sidebar-toggle {
                 display: none;
@@ -146,6 +149,9 @@ server <- function(input, output, session){
   observe({
     req(jump_information$data)
     
+    # You'll notice input$upload_type wrapped in isolate() in several parts of the below code. This is because we're dealing with observe(), not observeEvent()
+    # like above. Observe() responds to any changes in reactive inputs. E.g. new data upload, changing the filter type, etc. Since upload_type doesn't change once a given
+    # file is uploaded, though, we need to isolate() it to only have it checked when other inputs change.
     jump_information$formatted_data <- data_manipulation(uploaded_data = jump_information$data,
                                                          upload_type = isolate(input$upload_type),
                                                          filter_type = input$filter_type,
@@ -225,6 +231,9 @@ server <- function(input, output, session){
     
     trial <- input$selected_trial
     
+    # We have to pull the relevant information returned from the data_manipulation() function for the respective trial.
+    # In the case of multiple trial files (Paso, wide, long), the data are returned as a list. Otherwise, they're returned
+    # as a single data frame. The list position is accessed via [[X]].
     if(isolate(input$upload_type) != "Single Trial"){
       trial <- input$selected_trial
       data <- jump_information$formatted_data[[trial]]$trial_data
@@ -248,9 +257,15 @@ server <- function(input, output, session){
     sampling_frequency <- input$sampling_frequency
     quiet_standing_length <- round(input$standing_length * sampling_frequency)
     
+    # Prevents the app from crashing when you clear the quiet_standing_length input.
     req(quiet_standing_length != 0,
         !is.na(quiet_standing_length))
     
+    # Checks if you've brushed the primary plot (the plot on top) to constrain the data. If so,
+    # this constrains the data between the brushed points. 1 is subtracted from the brush value for the brush_offset,
+    # however, since R is indexed on 1. To best visualize this, if you began brushing at 1 (the first index value)
+    # and peak_force_index occurred at 1500, it would incorrectly return as 1499 after offset application. Therefore,
+    # preemptively remove 1 from the brush value so this isn't an issue.
     if(!is.null(jump_information$trial_brush)){
       
       brush_offset <- jump_information$trial_brush[1] - 1
@@ -263,6 +278,7 @@ server <- function(input, output, session){
       peak_landing_force_index <- peak_landing_force_index - brush_offset
     }
     
+    # Define all the necessary variables to find jump start and various unilateral metrics.
     body_weight <- data[1:quiet_standing_length, mean(total_force)]
     body_weight_sd <- data[1:quiet_standing_length, sd(total_force)]
     body_mass <- body_weight / 9.81
@@ -271,6 +287,10 @@ server <- function(input, output, session){
     
     minimum_force <- data[1:peak_force_index, min(total_force)]
     
+    # The app attempts to determine if the trial is SJ or CMJ on its own. A 250N difference between body weight and minimum force (prior to peak force)
+    # is fairly arbitrary but has worked thus far with athletes I've analyzed in baseball, volleyball, and soccer. It's certainly possible to adjust this threshold
+    # if a lot of your athletes aren't being detected correctly, but the simpler option may be manually setting the jump type in the input than determining
+    # a threshold that better suits your needs. Up to you, though.
     if(input$jump_type == "auto"){
       if(body_weight - minimum_force > 250)
         jump_type <- "cmj"
@@ -280,16 +300,24 @@ server <- function(input, output, session){
     else
       jump_type <- input$jump_type
     
+    # Both SJ and CMJ follow a similar logic set in determining jump start, pre-movement, etc.
+    # Start by determining the initiation threshold (quiet standing weight +/- 5*SD quiet standing force) alongside the
+    # "inverse threshold." That is, -5SD for SJ and +5SD for CMJ.
     if(jump_type == "sj"){
       initiation_threshold <- body_weight + body_weight_sd * 5
       
       inverse_threshold <- body_weight - body_weight_sd * 5
       
+      # For SJ, searches backward from peak force to find the first point below the initiation threshold.
       jump_threshold_index <- detect_index(data[1:peak_force_index, total_force],
                                            ~ .x <= initiation_threshold,
                                            .dir = "backward")
       
-      # Dealing with a countermovement at the start of the SJ
+      # Also searches a 100ms window prior to the inititaion threshold to determine if there was a countermovement
+      # below the inverse threshold. If so, re-searches for jump start from the minimum force
+      # of the countermovement. First, finds the first point above the inverse threshold in a backward search of the data
+      # and then adjusts the start either by moving backward an additional 30ms or until it finds a point near body weight,
+      # dependent on your selection in the jump start location input.
       if(sum(data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
                   min(total_force)] <= inverse_threshold) > 0){
         
@@ -318,6 +346,8 @@ server <- function(input, output, session){
       }
       else{
         
+        # If no countermovement is detected, however, true jump start is defined as the first point below or equal to body weight
+        # OR 30ms back from the initiation threshold.
         if(input$start_index == "5SD - BW"){
           jump_start_index <- detect_index(data[1:jump_threshold_index, total_force],
                                            ~ .x <= body_weight,
@@ -329,6 +359,9 @@ server <- function(input, output, session){
       }
     }
     else{
+      # Same idea for CMJs. Determine the initiation threshold and inverse threshold, find the first point exceeding the initiation threshold
+      # (by searching backward from minimum force in the countermovement), determine if the athlete exceeded the inverse threshold
+      # prior to initiating their countermovement, and adjust the data as appropriate from there. 
       initiation_threshold <- body_weight - body_weight_sd * 5
       
       inverse_threshold <- body_weight + body_weight_sd * 5
@@ -337,7 +370,6 @@ server <- function(input, output, session){
                                            ~ .x >= initiation_threshold,
                                            .dir = "backward")
       
-      # Same idea as above SJ countermovement detection; meant to check if there's an increase in force prior to the unweighting phase of the CMJ
       if(sum(data[(jump_threshold_index - 0.1 * sampling_frequency):jump_threshold_index,
                   max(total_force)] >= inverse_threshold) > 0){
         
@@ -372,6 +404,7 @@ server <- function(input, output, session){
       }
     }
     
+    # All data are then saved to our reactiveValues for calculation of various metrics.
     jump_information$analysis_data <- list(analysis_force_data = data,
                                            quiet_standing_length = quiet_standing_length,
                                            body_weight = body_weight,
@@ -466,9 +499,12 @@ server <- function(input, output, session){
       )
   })
   
+  # Responds to changes in analysis_data (e.g. altered filter, new trial selected, (de)brushing the primary plot, etc.)
+  # and recalculates all respective variables for the jump. 
   observe({
     req(jump_information$analysis_data)
     
+    # Pulls the vairous things needed for calculations.
     data <- jump_information$analysis_data$analysis_force_data
     jump_type <- jump_information$analysis_data$jump_type
     body_weight <- jump_information$analysis_data$body_weight
@@ -483,6 +519,14 @@ server <- function(input, output, session){
     
     jump_data <- data[jump_start_index:takeoff_index]
     
+    # Once upon a time, I created new, independent vectors for each variable...That was really dumb. Instead,
+    # everything is calculated in place via data.table. Since everything is contained in this data.table, it's relatively easy to add
+    # new variables. E.g. displacement for a force-displacement plot.
+    # If you want to add displacement in a fork, the code is displacement = cumtrapz(1:nrow(jump_data), velocity) / sampling_rate
+    # cumtrapz performs cumulative integration with the trapezoidal rule. This is overwhelmingly the most common method of integration in
+    # sports and exercise science, though there are certainly alternatives (Simpson's rule, etc.). Unfortunately, I'm unaware of any packages
+    # in R that can return a Simpson's rule-derived vector similar to cumtrapz. Also, research from the late 90s and early 2000s suggests
+    # there's no major difference between trapezoidal and Simpson's integration for vertical jumps.
     jump_data[, ":=" (net_impulse = cumtrapz(1:nrow(jump_data), total_force - body_weight) / sampling_frequency,
                       fp1_net_impulse = cumtrapz(1:nrow(jump_data), fp1 - fp1_weight) / sampling_frequency,
                       fp2_net_impulse = cumtrapz(1:nrow(jump_data), fp2 - fp2_weight) / sampling_frequency)
@@ -494,7 +538,7 @@ server <- function(input, output, session){
     # Landing index and takeoff index represent the first and last points the athlete is on the plates, respectively;
     # To only capture the time between these points, we need to subtract an additional index value before dividing by the sampling frequency
     flight_time <- (landing_index - takeoff_index - 1) / sampling_frequency
-    net_impulse <- jump_data[, last(net_impulse)]
+    net_impulse <- jump_data[, last(net_impulse)] # We only want the last point from the impulse calculation since it's cumulative in nature
     jump_height_ft <- 0.5 * 9.81 * (flight_time / 2) ^ 2
     takeoff_velocity <- jump_data[, last(velocity)]
     jump_height_ni <- takeoff_velocity ^ 2 / (2 * 9.81)
@@ -529,6 +573,7 @@ server <- function(input, output, session){
                                contact_time,
                                rsi_modified)
     
+    # Unilateral calculations for a few of the variables. For asymmetry, uses %symmetry index. 
     fp1_net_impulse <- jump_data[, last(fp1_net_impulse)]
     fp2_net_impulse <- jump_data[, last(fp2_net_impulse)]
     net_impulse_symmetry_index <- (fp1_net_impulse - fp2_net_impulse) / mean(c(fp1_net_impulse, fp2_net_impulse)) * 100
@@ -558,15 +603,22 @@ server <- function(input, output, session){
                           fp2_avg_rfd,
                           avg_rfd_symmetry_index)
     
+    # CMJ-specific variables are calculated below. Unlike SJ, there are multiple phases we can examine (unweighting, braking, and propulsive at the basic level).
+    # Also often called unweighting, eccentric, and concentric (or eccentric and concentric). If you want to get REALLY fancy, it's also possible to break the jump into unweighting,
+    # braking, propulsion-acceleration, and propulsion-deceleration. From there, you can calculate shape factor, etc. (Mizuguchi, 2012; Sole, 2015).
+    # That's pretty deep into the analysis weeds, though, and is not reflected here. Feel free to create your own fork to perform those analyses.
     if(jump_type == "cmj"){
       
       peak_force_index <- jump_data[, which.max(total_force)]
       
       minimum_force_index <- jump_data[1:peak_force_index, which.min(total_force)]
       
+      # We want the final point less than or equal to initial force, so -2 instead of -1.
       unweight_end_index <- detect_index(jump_data[minimum_force_index:peak_force_index, total_force],
                                          ~ .x >= jump_data[, first(total_force)]) + minimum_force_index - 2
       
+      # That means we have to +1 to accurately reflect the start of the braking phase. We only have to -1 to find the end of braking
+      # instead of -2, though.
       braking_end_index <- detect_index(jump_data[(unweight_end_index + 1):nrow(jump_data), net_impulse],
                                         ~ .x >= 0) + unweight_end_index - 1
       
@@ -574,6 +626,7 @@ server <- function(input, output, session){
       braking_duration <- (braking_end_index - unweight_end_index) / sampling_frequency
       propulsive_duration <- (nrow(jump_data) - braking_end_index) / sampling_frequency
       
+      # We want the first point that crosses 0 velocity after unweighting, so we +1 since we searched backward through velocity
       zero_velo_index <- detect_index(jump_data[, velocity],
                                       ~ .x <= 0,
                                       .dir = "backward") + 1
@@ -632,6 +685,7 @@ server <- function(input, output, session){
     unweight_end_index <- round(jump_information$metric_data$metric_table$unweight_duration * sampling_frequency)
     braking_end_index <- round(jump_information$metric_data$metric_table$braking_duration * sampling_frequency) + unweight_end_index
     
+    # The SJ plots are pretty straightforward. CMJ...not so much.
     if(jump_type == "sj"){
       force_plot <- plot_ly(plot_data,
                             x = ~1:nrow(plot_data)) %>%
@@ -676,6 +730,10 @@ server <- function(input, output, session){
                         showarrow = FALSE)
     }
     else{
+      # To display the CMJ plots with the different phases colored correctly, we have to rely on plotly's add_trace().
+      # add_trace() includes the fill = "tonexty" argument, which allows us to create a ribbon fill to the line segment
+      # spanning each phase's respective length at initial force for the jump. Multiple line segments for the initial force have to be created here
+      # as add_trace connects to the most recently defined trace.
       force_plot <- plot_ly(type = "scatter",
                             mode = "lines",
                             name = "Force") %>%
@@ -724,6 +782,9 @@ server <- function(input, output, session){
                         yanchor = "top",
                         showarrow = FALSE)
       
+      # Velocity and power are easier, though, since they begin at 0. Each phase can be filled with "tozeroy" instead, although
+      # we still have to create segments for each of the phases. For whatever reason, defining the phases this way screws up the ordering
+      # of the plot legend, and I have no idea how to adjust the order of the legend in plotly.
       velocity_plot <- plot_ly(type = "scatter",
                                mode = "lines",
                                name = "Velocity") %>%
@@ -805,6 +866,7 @@ server <- function(input, output, session){
                         showarrow = FALSE)
     }
     
+    # Subplot combines the three plots together
     subplot(force_plot,
             velocity_plot,
             power_plot,
@@ -836,6 +898,9 @@ server <- function(input, output, session){
                        variable.name = "Variable",
                        value.name = "Value")
     
+    # pack_rows allows us to group rows together while also providing some styling for each group. Group sizes can be provided
+    # as index values, which makes things really easy when we know the length of each group. In such cases, the starting and ending
+    # index values are all we need.
     output_table <- kable(long_table,
                           digits = 3,
                           col.names = NULL) %>%

@@ -36,6 +36,10 @@ file_parser <- function(file_location, upload_type){
   
   if(upload_type == "Pasco"){
     
+    # This was implemented to deal with countries that use commas as decimal points. Generally, R is smart enough to determine what locale the user is in,
+    # but I received several reports of the app not working for users affected by this. So there's a check in place to examine the first row of data
+    # for any commas. If the sum returns anything > 0 (logical operations return 1 [true] or 0 [false]), sub() is applied at the end of the function to replace
+    # the commas with decimals.
     decimal_check <- sum(fread(file = file_location,
                                skip = 1,
                                header = TRUE,
@@ -58,6 +62,7 @@ file_parser <- function(file_location, upload_type){
   } 
   else {
     
+    # See above comment about the reasoning for this being here.
     decimal_check <- sum(fread(file = file_location,
                                header = TRUE,
                                nrows = 1)[1] %like% ",")
@@ -76,8 +81,6 @@ file_parser <- function(file_location, upload_type){
 
 # Unlike the parser, data_manipulation does need to know what type of file it's working with as each file type is handled differently.
 # Pasco and wide multi-trial data are assumed to follow the same format, and single trials are pretty easy to deal with as well.
-# The implementation for long format multi-trial data is still experimental and needs work. I have several ideas for solutions,
-# but testing said solutions is time-consuming.
 # Regardless, we need to identify the upload type, the filter (if any) to apply, the sampling frequency (needed for filtering),
 # and the calibration values for the force plates (if they exist). Defaults for slope and intercept are 1 and 0, respectively.
 data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_frequency, fp1_slope, fp2_slope, fp1_intercept, fp2_intercept){
@@ -185,7 +188,7 @@ data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_
                                     .dir = "backward") + data_peaks$start
       
       # We want to cut a portion of the flight phase away before calculating mean force and sd of force to (hopefully) account for
-      # ringing in the plates at takeoff. I rather arbitrarily chose 25% from each side. That is, the middle 50% of the data
+      # ringing in the plates at takeoff. The middle 50% of the data
       # are used to calculate mean and SD to adjust takeoff and landing. Similar to the literature, 5x the SD of the flight
       # force is used as our threshold for takeoff and landing.
       flight_adjust <- (landing_index - takeoff_index) * 0.25
@@ -345,7 +348,7 @@ data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_
                                   .dir = "backward") + data_peaks$start
     
     # We want to cut a portion of the flight phase away before calculating mean force and sd of force to (hopefully) account for
-    # ringing in the plates at takeoff. I rather arbitrarily chose 25% from each side. That is, the middle 50% of the data
+    # ringing in the plates at takeoff. The middle 50% of the data
     # are used to calculate mean and SD to adjust takeoff and landing. Similar to the literature, 5x the SD of the flight
     # force is used as our threshold for takeoff and landing.
     flight_adjust <- (landing_index - takeoff_index) * 0.25
@@ -516,7 +519,7 @@ data_manipulation <- function(uploaded_data, upload_type, filter_type, sampling_
                                     .dir = "backward") + peak_force_index
       
       # We want to cut a portion of the flight phase away before calculating mean force and sd of force to (hopefully) account for
-      # ringing in the plates at takeoff. I rather arbitrarily chose 25% from each side. That is, the middle 50% of the data
+      # ringing in the plates at takeoff. The middle 50% of the data
       # are used to calculate mean and SD to adjust takeoff and landing. Similar to the literature, 5x the SD of the flight
       # force is used as our threshold for takeoff and landing.
       flight_adjust <- (landing_index - takeoff_index) * 0.25
