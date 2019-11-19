@@ -640,17 +640,24 @@ server <- function(input, output, session){
       # Additional variables suggested by Lake et al. (in preparation)
       peak_braking_force <- jump_data[(unweight_end_index + 1):braking_end_index, max(total_force)]
       avg_braking_force <- jump_data[(unweight_end_index + 1):braking_end_index, mean(total_force)]
+      
       min_braking_velocity <- jump_data[(unweight_end_index + 1):braking_end_index, min(velocity)]
       avg_braking_velocity <- jump_data[(unweight_end_index + 1):braking_end_index, mean(velocity)]
+      
       peak_braking_power <- jump_data[(unweight_end_index + 1):braking_end_index, min(power)]
       avg_braking_power <- jump_data[(unweight_end_index + 1):braking_end_index, mean(power)]
+      
       braking_work <- avg_braking_power * braking_duration
+      
       peak_propulsive_force <- jump_data[(braking_end_index + 1):nrow(jump_data), max(total_force)]
       avg_propulsive_force <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(total_force)]
+      
       peak_propulsive_velocity <- jump_data[(braking_end_index + 1):nrow(jump_data), max(velocity)]
       avg_propulsive_velocity <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(velocity)]
+      
       peak_propulsive_power <- jump_data[(braking_end_index + 1):nrow(jump_data), max(power)]
       avg_propulsive_power <- jump_data[(braking_end_index + 1):nrow(jump_data), mean(power)]
+      
       propulsive_work <- avg_propulsive_power * propulsive_duration
       
       metric_table <- cbind(metric_table,
