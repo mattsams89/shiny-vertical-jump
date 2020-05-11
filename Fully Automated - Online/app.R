@@ -689,15 +689,6 @@ server <- function(input, output, session){
   output$metric_plot <- renderPlotly({
     req(jump_information$metric_data)
     
-    if(!("jump_type" %in% colnames(jump_information$metric_data$metric_table))){
-      jump_information$metric_data$metric_table <- cbind(date = input$test_date,
-                                                         athlete = input$athlete_name,
-                                                         jump_type = jump_information$analysis_data$jump_type,
-                                                         trial = input$selected_trial,
-                                                         bar_load = input$bar_load,
-                                                         jump_information$metric_data$metric_table)
-    }
-    
     jump_type <- jump_information$metric_data$metric_table$jump_type
     plot_data <- jump_information$metric_data$plot_data
     sampling_frequency <- jump_information$metric_data$sampling_frequency
@@ -897,7 +888,7 @@ server <- function(input, output, session){
   output$metric_table <- function(){
     req(jump_information$metric_data)
     
-    table_data <- jump_information$metric_data$metric_table
+    table_data <- copy(jump_information$metric_data$metric_table)
     jump_type <- table_data[, jump_type]
     
     if(jump_type == "cmj")
@@ -948,15 +939,6 @@ server <- function(input, output, session){
   
   observeEvent(input$save_trial, {
     req(jump_information$metric_data)
-    
-    if(!("jump_type" %in% colnames(jump_information$metric_data$metric_table))){
-      jump_information$metric_data$metric_table <- cbind(date = input$test_date,
-                                                         athlete = input$athlete_name,
-                                                         jump_type = jump_information$analysis_data$jump_type,
-                                                         trial = input$selected_trial,
-                                                         bar_load = input$bar_load,
-                                                         jump_information$metric_data$metric_table)
-    }
     
     save_function(data_to_write = jump_information$metric_data$metric_table)
     
