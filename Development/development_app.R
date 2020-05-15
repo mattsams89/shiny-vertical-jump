@@ -9,7 +9,7 @@ sidebar <- dashboardSidebar(
   disable = TRUE
 )
 
-# The only exception to what I said above is here. If you've never seen HTML, the below is used to change the layout and color of the app a bit.
+# The only exception to what I said above is here. If you've never seen HTML or CSS, the below is used to change the layout and color of the app a bit.
 # If you'd like to change the colors to your team/school colors, look up the hex codes via your organization's color palette standards and replace
 # 004687 with the respective values. If you'd like to change the color of "Vertical Jump Analysis", too, add a line below background-color:#004687;
 # with color:#XXXXXX; based on whatever color you'd like to change it to.
@@ -150,11 +150,15 @@ server <- function(input, output, session){
   
   # Data manipulation / formatting prior to analysis
   observe({
-    req(jump_information$data)
+    req(jump_information$data) # Requires uploaded data to exist before it will function
     
-    # You'll notice input$upload_type wrapped in isolate() in several parts of the below code. This is because we're dealing with observe(), not observeEvent()
-    # like above. Observe() responds to any changes in reactive inputs. E.g. new data upload, changing the filter type, etc. Since upload_type doesn't change once a given
+    # You'll notice input$upload_type wrapped in isolate() in several parts of the below code. 
+    #This is because we're dealing with observe(), not observeEvent()
+    # like above. Observe() responds to any changes in reactive inputs. 
+    # E.g. new data upload, changing the filter type, etc. Since upload_type doesn't change once a given
     # file is uploaded, though, we need to isolate() it to only have it checked when other inputs change.
+    # I mention it in the global.R file, but it bears repeating here: changes to these inputs
+    # will force a full recalc on your uploaded data, so set and forget these ahead of time if possible.
     if(isolate(input$upload_type) != "Multiple Trials - Long"){
       jump_information$formatted_data <- wide_data_manipulation(data = jump_information$data,
                                                                 filter_type = input$filter_type,
@@ -211,12 +215,19 @@ server <- function(input, output, session){
   })
   
   # Creates the primary plot. Brushing is allowed.
+  # This is the only plot code not in global.R since I didn't want to see if
+  # moving the plot_brush source would force me to rewrite things.
   output$main_plot <- renderPlotly({
-    req(jump_information$formatted_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$formatted_data, # Requires uploaded and formatted data
+        input$selected_trial != 0, # Requires selected_trial > 0
+        !is.na(input$selected_trial), # Prevents crashing if you clear selected_trial
+        !(input$selected_trial > jump_information$trials)) # Prevents crashing if selected_trial is
+    # temporarily > what's available in the data. Mostly an issue on new uploads while the data
+    # are parsed and formatted.
     
+    # Again, isolated to keep changes to upload_type from breaking everything
+    # Also, single trial returns a length-one list so it's accessed slightly differently
+    # than multi-trial data.
     if(isolate(input$upload_type) != "Single Trial"){
       trial <- input$selected_trial
       data <- jump_information$formatted_data[[trial]]$data
@@ -224,38 +235,47 @@ server <- function(input, output, session){
     else
       data <- jump_information$formatted_data$data
     
+    # All the operations have been on indices, so why start something new here?
     plot_ly(data,
             x = ~seq_along(total_force),
-            source = "plot_brush") %>%
+            source = "plot_brush") %>% # Links the plot to the brush we defined above.
       add_lines(y = ~total_force,
                 name = "Total Force") %>%
       layout(xaxis = list(title = "Index",
                           fixedrange = TRUE),
              yaxis = list(title = "Force",
                           fixedrange = TRUE),
-             dragmode = "select")
+             dragmode = "select") # Enables click-and-drag plot brushing
   })
   
+  # Observer that performs jump analysis. Currently only implemented for single jumps,
+  # so rebound jumping is not supported.
   observe({
-    req(jump_information$formatted_data,
-        input$selected_trial != 0,
-        !is.na(input$selected_trial),
-        !(input$selected_trial > jump_information$trials))
+    req(jump_information$formatted_data, # Requires uploaded and formatted data
+        input$selected_trial != 0, # Prevents crashes from selected_trial < 1
+        !is.na(input$selected_trial), # Prevent crashes from empty selected_trial
+        !(input$selected_trial > jump_information$trials)) # prevents crashes
+    # when uploading new data, where selected_trial may be greater than available trials
     
-    trial <- input$selected_trial
+    trial <- input$selected_trial # selected_trial input; moves through each trial in uploaded data
     
     if(isolate(input$upload_type) != "Single Trial")
       data_list <- jump_information$formatted_data[[trial]]
     else
       data_list <- jump_information$formatted_data
     
+    # Sampling frequency is a double whammy in that it affects initial calculations and individual
+    # trial calculations. So try to only change this prior to uploading data.
     sampling_frequency <- input$sampling_frequency
     
+    # Only affects currently selected trial; used to set body_weight_sd
     quiet_standing_length <- round(input$standing_length * sampling_frequency)
     
+    # Prevents crashes if quiet_standing_length = 0 or is cleared
     req(quiet_standing_length != 0,
         !is.na(quiet_standing_length))
     
+    # Performs single jump analysis and saves results to a reactiveValues list
     jump_information$analysis_list <- single_jump_analysis(data_list = data_list,
                                                            sampling_frequency = sampling_frequency,
                                                            quiet_standing_length = quiet_standing_length,
@@ -270,17 +290,22 @@ server <- function(input, output, session){
   })
   
   output$secondary_plot <- renderPlotly({
-    req(jump_information$analysis_list)
+    req(jump_information$analysis_list) # Requires above single_jump_analysis before it will plot
     
     secondary_plot(analysis_list = jump_information$analysis_list$descriptive_list)
   })
   
+  # Creates plots for quick view tab
+  # Different functions for SJ vs. CMJ
   output$metric_plot <- renderPlotly({
-    req(jump_information$analysis_list)
+    req(jump_information$analysis_list) # Requires analyzed data
 
     jump_type <- jump_information$analysis_list$descriptive_list$jump_type
     data <- jump_information$analysis_list$subplot_data
 
+    # We have to define layout(yaxis) here in this case since the function can't
+    # know how we want to present the variable name ahead of time. I suppose I could have
+    # coded that into the plot function, but oh well.
     if(jump_type == "sj"){
       force_plot <- sj_subplot_design(data,
                                       variable = "total_force") %>%
@@ -299,10 +324,12 @@ server <- function(input, output, session){
       unweight_end_index <- round(jump_information$analysis_list$metric_table$unweight_duration * sampling_frequency)
       braking_end_index <- round(jump_information$analysis_list$metric_table$braking_duration * sampling_frequency) + unweight_end_index
 
+      # Only difference (aside from needing unweighting and braking end) is Net Force instead of Force.
       force_plot <- cmj_subplot_design(data,
                                        variable = "total_force",
                                        unweight_end_index,
-                                       braking_end_index)
+                                       braking_end_index) %>%
+        layout(yaxis = list(title = "<b>Net Force</b>"))
 
       velocity_plot <- cmj_subplot_design(data,
                                           variable = "velocity",
@@ -317,6 +344,10 @@ server <- function(input, output, session){
         layout(yaxis = list(title = "<b>Power</b>"))
     }
 
+    # In either case, we subplot() to combine the three plots together
+    # Three rows of plots with shared X axes. Y axes are NOT shared
+    # and each plot has its own y axis label.
+    # One unified xaxis label.
     subplot(force_plot,
             velocity_plot,
             power_plot,
@@ -327,14 +358,18 @@ server <- function(input, output, session){
       layout(xaxis = list(title = "Index"))
   })
   
+  # Kableextra is reactive via function() instead of a render_x() function
+  # I think I've implemented it via renderText() in some instances at work since
+  # it's HTML, but not necessary here.
   output$metric_table <- function(){
-    req(jump_information$analysis_list)
+    req(jump_information$analysis_list) # Requires analyzed data
     
     metric_table_design(data = jump_information$analysis_list$metric_table)
   }
   
+  # Yay, save the data!
   observeEvent(input$save_trial, {
-    req(jump_information$analysis_list)
+    req(jump_information$analysis_list) # Requires analyzed data
     
     save_function(data_to_write = jump_information$analysis_list$metric_table)
     

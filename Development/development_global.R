@@ -1,7 +1,7 @@
 # Load Packages / Set Options -----
 library(shiny) # Backend for the app
 library(shinydashboard) # Makes design much easier
-library(data.table) # Bulk of data processing
+library(data.table) # Bulk of data processing; no developmental functions like fcase (1.12.9) used
 library(zoo) # Rolling average filter
 library(signal) # Butterworth filter design
 library(changepoint) # Identification of "changepoints" to aid in event detection
@@ -13,9 +13,13 @@ library(kableExtra) # Table output
 library(shinyjs) # Javascript operations to reset inputs, etc.
 
 options(shiny.maxRequestSize = 40 * 1024 ^ 2) # Accepts files up to 40 mB in size; adjust based on your file size requirements
-options(knitr.table.format = "html")
+options(knitr.table.format = "html") # This saves me from having to declare this several times later
 
 # Output table headers -----
+# These headers are used for creation of the metric table and during the data saving process
+# They're partitioned out to allow for different sets on the Calculated Metrics tab
+# The addition of new jump types will necessitate new header sets since DJ, RJ, etc.
+# tend to examine different variables than what are present here
 sj_table_headers <- c("Body Mass", "Flight Time", "Net Impulse", "Jump Height (FT)",
                       "Jump Height (NI)", "Takeoff Velocity", "Peak Force", "Peak Velocity",
                       "Peak Power", "Force @ Peak Power", "Velocity @ Peak Power",
@@ -91,8 +95,17 @@ file_parser <- function(file_location, upload_type){
 }
 
 # Calibration and filtering function -----
+# First of the conversions to a function instead of being written out in the upload handling in the main app
+# Data are passed to this function via the wide_data_manipulation and long_data_manipulation functions that are below
+# In the former case, a lapply() returns series of fp1 and fp2, whereas in the latter, there's only two columns anyway.
+# This filter_function works in series with single_jump_event_detection or multi_peak_detection,
+# depending on the file format
 filter_function <- function(fp1, fp2, fp1_slope, fp2_slope, fp1_intercept, fp2_intercept, filter_type, sampling_frequency){
   
+  # If you have a calibration equation, that's applied here; you want to be careful about adjusting any of the inputs
+  # associated with this function (Apply Filter? Sampling Frequency, etc.) because adjusting them forces
+  # a complete re-analysis of all trials in your data. Not the case for adjusting individual trials via
+  # quiet_standing and jump_start_location.
   data <- data.table(fp1, fp2)[, setNames(.SD, c("fp1", "fp2"))
                                ][, na.omit(.SD)
                                  ][, ":=" (fp1 = fp1 * fp1_slope + fp1_intercept,
@@ -114,25 +127,34 @@ filter_function <- function(fp1, fp2, fp1_slope, fp2_slope, fp1_intercept, fp2_i
     }
     else{
       
-      # 10-point moving average
+      # 10-point moving average; this was incorrectly set to a right alignment previously
+      # Center alignment causes the smoothed data to still be in sync with changes in the raw data,
+      # whereas right alignment pushes the changes to the right of when they occur in the raw data.
       data <- data[, lapply(.SD, function(x) rollapply(x, 10, mean, align = "center", partial = TRUE))
                    ][, total_force := fp1 + fp2]
     }
   }
   else{
-    data[, total_force := fp1 + fp2]
+    data[, total_force := fp1 + fp2] # No filter applied
   }
   
   return(data)
 }
 
 # Single jump event detection function -----
+# Once the data are filtered, they're then passed to this function or the multiple peak detection function
+# depending on whether we're dealing with single trial/wide format data or long format data
+# The methods are broken out from one another since we want this to return a single peak pair (takeoff/landing),
+# whereas we need the other to return all peak pairs with a certain amount of time < threshold between them.
 single_jump_event_detection <- function(data, sampling_frequency){
   
   # Prior to checking for data that meet our criteria for takeoff, landing, etc. we need to remove any data
   # that could be accidentally misclassified as below threshold (e.g., trial starts with athlete off the plates)
+  # This is due to how findpeaks() works. The athlete stepping on to the plates could be accidentally misinterpreted
+  # as a peak, which could throw off the detection function I've written.
   # In this case, a minimum of 440N (~45kg) is required. If you're working with lighter athletes, you'll need to adjust
   # 440 to the respective weight (in N) of your lightest athlete
+  # The same adjustment needs to be made in multi_peak_detection
   start_index <- detect_index(data[, total_force],
                               ~ .x >= 440)
   
@@ -147,16 +169,23 @@ single_jump_event_detection <- function(data, sampling_frequency){
   # who keyed me onto this idea, but basically, we use a threshold of 40% of peak fp1/fp2 force to minimize
   # erroneous peaks found in total_force. Then, we do a little work to determine which peaks are actually associated with
   # takeoff and landing by checking for which peaks have 202 - 903 ms worth of below-threshold data between them.
-  # In this case, threshold = 10 Hz and 202 and 903 ms ~ 5cm and 100cm, respectively. In theory, this should
+  # In this case, threshold = 10 N; 202 and 903 ms ~ 5cm and 100cm, respectively. In theory, this should
   # remove points where unweighting falls below threshold, the athlete falls off the plates at the end of the jump, etc.
+  # The threshold is based off individual plate peak landing force (in theory...I've seen some weird athletes),
+  # so the 40% threshold shouldn't cause it to miss any takeoff or landing events since it uses the threshold
+  # on total_force.
   data_peaks <- data[, as.data.table(findpeaks(total_force,
                                                minpeakdistance = round(500 * (sampling_frequency / 1000)),
                                                minpeakheight = max(c(max(fp1), max(fp2))) * 0.4))
                      ][order(V2)
-                       ][, .(start = shift(V2,
-                                           fill = 1),
+                       ][, .(start = shift(V2, # To create a search range for peak pairs, we need to add 1
+                                           fill = 1), # at the start; hence, a shift of the peaks found above
                              end = V2)]
   
+  # This lapply searches between each start-end pair to determine the amount of time below the force threshold
+  # of 10N. Like I said above, only 202ms - 903ms are considered likely candidates for flight time.
+  # All other peak pairs are thrown out.
+  # Good luck if you have athletes jumping lower than that, and good on you if they're jumping higher than that.
   data_peaks <- data_peaks[, below_threshold :=
                              unlist(
                                lapply(1:nrow(.SD),
@@ -168,26 +197,28 @@ single_jump_event_detection <- function(data, sampling_frequency){
   
   # Finds the index value for the final instance the athlete's weight is above 10N. R is indexed on 1,
   # so we have to subtract 2 from the value for this to coincide with the final point in the data
+  # Starts searching from data_peaks$start, which is the peak likely associated with peak force prior to takeoff
   takeoff_index <- detect_index(data[data_peaks$start:nrow(data),
                                      total_force],
                                 ~ .x <= 10) + data_peaks$start - 2
   
   # Landing, however, doesn't need addition or subtraction since we actually want the first point
   # where the athlete's weight is > 10N
+  # Searches between the two peaks since they represent takeoff and landing peak force
   landing_index <- detect_index(data[data_peaks$start:data_peaks$end,
                                      total_force],
                                 ~ .x <= 10,
                                 .dir = "backward") + data_peaks$start
   
   # We don't actually want the entire flight phase for calculating the true force value of the unweighted
-  # force plates since ringing could be an issue at takeoff. So, we take the middle 50% of the data instead
+  # force plates since ringing could be an issue. So, we take the middle 50% of the data instead
   # The mean + 5SD is used as the true threshold for takeoff and landing, based on the literature.
   flight_adjust <- (landing_index - takeoff_index) * 0.25
   
   flight_statistics <- data[(takeoff_index + flight_adjust):(landing_index - flight_adjust),
                             .(mean = mean(total_force),
-                              sd = sd(total_force) * 5)
-                            ][, threshold := mean + sd]
+                              sd = sd(total_force))
+                            ][, threshold := mean + sd * 5]
   
   # Now we adjust takeoff and landing based on these new values
   takeoff_index <- detect_index(data[data_peaks$start:nrow(data),
@@ -201,7 +232,9 @@ single_jump_event_detection <- function(data, sampling_frequency){
   
   # For our initial best guess at a quiet standing portion for the jump, we find a 1s interval with
   # the lowest variance prior to takeoff. cpt.var finds "changepoints" in the variance of the data
-  # based on a minimum segment length of 1s.
+  # based on a minimum segment length of 1s. This can be adjusted for individual trials
+  # via the Quiet Standing input, but this initial first pass is performed on all trials to
+  # give us starting points.
   # We suppress warnings in case #changepoints < Q < #changepoints
   suppressWarnings({
     var_changepoints <- cpt.var(data[, total_force],
@@ -211,8 +244,10 @@ single_jump_event_detection <- function(data, sampling_frequency){
                                 class = FALSE)
   })
   
-  # The above is a vector; we want it to be a data.table to perform some similar mathmagic to the data_peaks
+  # The above is a vector; we want it to be a data.table to perform some similar data.table magic to the data_peaks
   # stuff above
+  # Similar to data_peaks, we shift cp1 down one and add 1 to allow it to begin searching from the start
+  # of the trial data (e.g. 1:1000, 1000:whatever)
   var_changepoints <- data.table(cbind(cp1 = shift(var_changepoints,
                                                    fill = 1),
                                        cp2 = var_changepoints))
@@ -233,10 +268,12 @@ single_jump_event_detection <- function(data, sampling_frequency){
   
   landing_index <- landing_index - var_changepoints[most_stable_changepoint, cp1] + 1
   
+  # Not an issue for the peaks, since which.max() can be used to recover the index value at which each occurs
   peak_force_index <- data[1:takeoff_index, which.max(total_force)]
   
   peak_landing_force_index <- data[, which.max(total_force)]
   
+  # Ditto which.min()
   minimum_force_index <- data[1:peak_force_index, which.min(total_force)]
   
   # Relevant data and time points are passed to a list; this is passed along in a reactive context for further processing
@@ -280,7 +317,8 @@ wide_data_manipulation <- function(data, filter_type, sampling_frequency, fp1_sl
       event_list <- single_jump_event_detection(trial_data, sampling_frequency)
     })
   }
-}
+  return(trial_list) # This is returned implicitly since it's the last thing in the function, but it's generally
+} # recommended to perform an explicit return since it avoids accidental returns of the wrong thing.
 
 # Multiple peak detection -----
 # Used for long files right now; can be expanded to repeated jumps
@@ -297,8 +335,6 @@ multi_peak_detection <- function(data, sampling_frequency){
                             .dir = "backward")
   
   data <- data[start_index:end_index]
-  
-  ## TODO add if-else for repeated jumps once functionality is added; will involve omitting the 202 and 903 ms requirements between peaks
   
   # Divergence from single trial / wide data begins here. There are multiple takeoff and landing peaks in long data.
   # Therefore, we need to find all peaks. We again leverage findpeaks
@@ -320,6 +356,9 @@ multi_peak_detection <- function(data, sampling_frequency){
                              )][below_threshold %between% c(round(202 * (sampling_frequency / 1000)),
                                                             round(903 * (sampling_frequency / 1000)))]
   
+  # We explicitly return the data and the associated peaks this time since the following function will
+  # loop between peak pairs. I accidentally forgot to export the constrained data, which caused some
+  # very frustrating errors until realized what I'd done.
   return(list(data = data,
               data_peaks = data_peaks))
 }
@@ -343,21 +382,32 @@ long_data_manipulation <- function(data, filter_type, sampling_frequency, fp1_sl
   # Loop through $data_peaks to constrain $data and then perform single_jump_event_detection()
   peaks <- multi_peak_detection(filtered_data, sampling_frequency)
   
+  # This works almost identically to the wide data approach earlier. This time, however, we need to clip the data into
+  # chunks based around each identified peak pair (again, long data have multiple trials in two long streams of fp1/fp2 data).
+  # I settled on 4 seconds behind takeoff peak force and .5 seconds past peak landing force. Adjust as needed.
   trial_list <- lapply(1:nrow(peaks$data_peaks), function(x){
     trial_data <- peaks$data[1:nrow(peaks$data) %between% peaks$data_peaks[x, list(start - round(3999 * (sampling_frequency / 1000)),
                                                                                    end + round(500 * (sampling_frequency / 1000)))]]
     
+    # We can loop over single_jump_event_detection with the constrained data created above.
     event_list <- single_jump_event_detection(trial_data, sampling_frequency)
   })
   
+  # The lapply returns a list that we pass on similar to the wide data
   return(trial_list)
 }
 
 # Single jump analysis -----
+# Alright, both wide_data_manipulation and long_data_manipulation have returned identically structured lists that can
+# be read by single_jump_analysis
 single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_length,
                                  offset_brush, jump_type, start_definition, session,
                                  date, athlete, trial, bar_load){
   
+  # Sometimes you'll see me do this, and other times you'll see me refer to variables specifically
+  # in functions. It mostly depends on how frequently I would need to re-type stuff. Better to designate it
+  # here in cases where I'd be re-typing variables very frequently. Could probably do a sprintf type thing
+  # instead, but that sounds painful to figure out.
   data <- data_list$data
   minimum_force_index <- data_list$minimum_force_index
   peak_force_index <- data_list$peak_force_index
@@ -366,6 +416,9 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
   landing_index <- data_list$landing_index
   peak_landing_force_index <- data_list$peak_landing_force_index
   
+  # Checks if a brush has been applied to the primary plot. Brushing constrains the data to the starting and ending
+  # x-axis index values, which can be leveraged to remove noisy quiet standing data, cut the athlete from falling off
+  # the plates, etc. If the brush exists, start_offset is brush[1] - 1 since R starts indices at 1.
   if(!is.null(offset_brush)){
     
     start_offset <- offset_brush[1] - 1
@@ -379,12 +432,15 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
   }
   
   # Define all the necessary variables to find jump start and various unilateral metrics.
+  # These are reactive to the quiet_standing input on the input pane on the left.
   body_weight <- data[1:quiet_standing_length, mean(total_force)]
   body_weight_sd <- data[1:quiet_standing_length, sd(total_force)]
   body_mass <- body_weight / 9.81
   fp1_weight <- data[1:quiet_standing_length, mean(fp1)]
   fp2_weight <- data[1:quiet_standing_length, mean(fp2)]
   
+  # Checks for the minimum force value between trial start and peak force prior to takeoff
+  # This is leveraged to attempt to determine jump type automatically
   minimum_force <- data[1:peak_force_index, min(total_force)]
   
   # The app attempts to determine if the trial is SJ or CMJ on its own. A 250N difference between body weight and minimum force (prior to peak force)
@@ -397,8 +453,6 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
     else
       jump_type <- "sj"
   }
-  # else
-  #   jump_type <- jump_type
   
   # Both SJ and CMJ follow a similar logic set in determining jump start, pre-movement, etc.
   # Start by determining the initiation threshold (quiet standing weight +/- 5*SD quiet standing force) alongside the
@@ -531,7 +585,7 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
   # a number of the variables. Everything is eventually exported as lists
   jump_data <- data[jump_start_index:takeoff_index]
   
-  # Impulse calculation function
+  # Define an impulse calculation function here to avoid typing it over and over again.
   impulse <- function(.data, force_data, weight, sampling_frequency){
     cumtrapz(1:nrow(.data), force_data - weight) / sampling_frequency
   }
@@ -569,6 +623,7 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
   contact_time <- nrow(jump_data) / sampling_frequency
   rsi_modified <- jump_height_ni / contact_time
   
+  # This table is what we'll use to hold everything for the calculated metrics tab and for the data saving process
   metric_table <- data.table(
     date,
     athlete,
@@ -626,7 +681,8 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
                         avg_rfd_symmetry_index)
   
   # CMJ-specific variables are calculated below. Unlike SJ, there are multiple phases we can examine (unweighting, braking, and propulsive at the basic level).
-  # Also often called unweighting, eccentric, and concentric (or eccentric and concentric). If you want to get REALLY fancy, it's also possible to break the jump into unweighting,
+  # Also often called unweighting, eccentric, and concentric (or eccentric and concentric). 
+  # If you want to get REALLY fancy, it's also possible to break the jump into unweighting,
   # braking, propulsion-acceleration, and propulsion-deceleration. From there, you can calculate shape factor, etc. (Mizuguchi, 2012; Sole, 2015).
   # That's pretty deep into the analysis weeds, though, and is not reflected here. Feel free to create your own fork to perform those analyses.
   if(jump_type == "cmj"){
@@ -700,6 +756,8 @@ single_jump_analysis <- function(data_list, sampling_frequency, quiet_standing_l
                           propulsive_work)
   }
   
+  # Similar to the list returned above, although this list is used
+  # for the quick view, calculated metrics, and CSV export
   analysis_list <- list(descriptive_list = descriptive_list,
                         metric_table = metric_table,
                         subplot_data = jump_data)
@@ -738,6 +796,8 @@ hline <- function(x0 = 0, x1 = 0, y = 0, color = "red"){
   )
 }
 
+# This is an instance of a function where I didn't feel it was worth defining everything at the top
+# Whether that's accurate, eh.
 secondary_plot <- function(analysis_list){
   
   plot <- plot_ly(data = analysis_list$data,
@@ -764,21 +824,21 @@ secondary_plot <- function(analysis_list){
     ) %>%
     layout(
       shapes = list(
-        vline(analysis_list$jump_start),
-        vline(analysis_list$jump_threshold_index),
-        vline(analysis_list$peak_force),
-        vline(analysis_list$takeoff),
-        vline(analysis_list$landing),
-        vline(analysis_list$peak_landing_force),
+        vline(analysis_list$jump_start), # Actual jump start
+        vline(analysis_list$jump_threshold_index), # The point that breaks the initiation threshold
+        vline(analysis_list$peak_force), # Peak pre-takeoff force
+        vline(analysis_list$takeoff), # Takeoff point
+        vline(analysis_list$landing), # Ditto landing
+        vline(analysis_list$peak_landing_force), # Ditto peak landing force
         hline(x0 = 1, 
               x1 = analysis_list$jump_threshold_index, 
-              y = analysis_list$initiation_threshold),
+              y = analysis_list$initiation_threshold), # Visual representation of the initiation threshold
         hline(x0 = analysis_list$takeoff,
               x1 = analysis_list$landing,
-              y = analysis_list$flight_threshold),
+              y = analysis_list$flight_threshold), # Same for the flight threshold
         list(
-          type = "rect",
-          fillcolor = "blue",
+          type = "rect", # Filled ribbon used to show the SD of quiet standing and resultant inverse threshold
+          fillcolor = "blue", # Helps the user understand why they receive a warning about the inverse threshold
           line = list(color = "blue"),
           opacity = 0.3,
           x0 = 1,
@@ -796,6 +856,11 @@ secondary_plot <- function(analysis_list){
   return(plot)
 }
 
+# The subplots for the two jump type variants currently supported are vastly different in their displays
+# This is because CMJ have different phases...I know some people have tried to define SJ phases, but get
+# outta here with that noise. For SJ, the name of the variable is passed as a string argument,
+# which is converted to the variable via get(). Subplot titles are manually set in the app.R
+# since there was no real way to do that here without some serious refactoring.
 sj_subplot_design <- function(data, variable){
   
   plot <- plot_ly(data,
@@ -807,51 +872,21 @@ sj_subplot_design <- function(data, variable){
   return(plot)
 }
 
+# CMJ is unfortunately more complex. Originally, I manually created each section for the force
+# data, but I realized I was being dumb and changed it to net force instead. That is,
+# force - starting force value. This cuts down on clutter considerably.
 cmj_subplot_design <- function(data, variable, unweight_end_index, 
                                braking_end_index){
   
-  if(variable == "total_force"){
-    plot <- plot_ly(type = "scatter",
-                    mode = "lines") %>%
-      add_trace(data = data,
-                x = ~1:unweight_end_index,
-                y = ~first(total_force),
-                color = I("black"),
-                showlegend = FALSE) %>%
-      add_trace(data = data[1:unweight_end_index],
-                x = ~seq_along(total_force),
-                y = ~total_force,
-                fill = "tonexty",
-                color = I("red"),
-                name = "Unweighting") %>%
-      add_trace(data = data,
-                x = ~unweight_end_index:braking_end_index,
-                y = ~first(total_force),
-                color = I("black"),
-                showlegend = FALSE) %>%
-      add_trace(data = data[(unweight_end_index + 1):braking_end_index],
-                x = ~((unweight_end_index + 1):braking_end_index),
-                y = ~total_force,
-                fill = "tonexty",
-                color = I("orange"),
-                name = "Braking") %>%
-      add_trace(data = data,
-                x = ~braking_end_index:nrow(data),
-                y = ~first(total_force),
-                color = I("black"),
-                showlegend = FALSE) %>%
-      add_trace(data = data[(braking_end_index + 1):nrow(data)],
-                x = ~((braking_end_index + 1):nrow(data)),
-                y = ~total_force,
-                fill = "tonexty",
-                color = I("blue"),
-                name = "Propulsive") %>%
-      layout(xaxis = list(title = "Index"),
-             yaxis = list(title = "<b>Force</b>"),
-             legend = list(orientation = "h")
-      )
-  }
-  else{
+  # We copy() here since data.table modifies by reference. Modifying by reference
+  # *will* change the data specified in the data argument of the function, which I learned the hard
+  # way for the calculated metrics tab. Copy() forces data.table to perform calculations on
+  # a copy of the data.
+  if(variable == "total_force")
+    data <- copy(data[, total_force := total_force - first(total_force)])
+  
+  # We create a filled ribbon for each phase of the CMJ. Ribbons can be auto-filled
+  # via "tozeroy". Hence why net force is used instead of the gross force.
     plot <- plot_ly(type = "scatter",
                     mode = "lines") %>%
       add_trace(data = data[1:unweight_end_index],
@@ -872,13 +907,14 @@ cmj_subplot_design <- function(data, variable, unweight_end_index,
                 fill = "tozeroy",
                 color = I("blue"),
                 showlegend = FALSE)
-  }
   
   return(plot)
 }
 
+# Table design for the Calculated Metrics tab.
 metric_table_design <- function(data){
   
+  # Again, we want a copy to prevent modify by reference-induced bugs.
   table_data <- copy(data)
   jump_type <- table_data[, jump_type]
   
@@ -894,19 +930,21 @@ metric_table_design <- function(data){
                      bar_load = NULL)]
   setnames(table_data, headers)
   
+  # I think this could be accomplished with transpose() as well, but
+  # you know what they say about things that ain't broke.
   long_table <- melt(table_data,
                      measure.vars = 1:ncol(table_data),
                      variable.name = "Variable",
                      value.name = "Value")
   
   output_table <- kable(long_table,
-                        digits = 3,
-                        col.names = NULL) %>%
+                        digits = 3, # Standardize all values at 3 digits
+                        col.names = NULL) %>% # No need for "variable" and "value" in the table
     kable_styling(bootstrap_options = "striped") %>%
-    pack_rows("Bilateral Variables",
+    pack_rows("Bilateral Variables", # We know the exact number of variables in this case
               start_row = 1,
               end_row = 15,
-              label_row_css = "background-color: #004687; color: #fff;") %>%
+              label_row_css = "background-color: #004687; color: #fff;") %>% # Edit these to change the look of your table
     pack_rows("Unilateral Variables",
               start_row = 16,
               end_row = 27,
