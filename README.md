@@ -1,6 +1,6 @@
 # Shiny Vertical Jump Analysis
 
-https://zenodo.org/badge/119111981.svg
+[![DOI](https://zenodo.org/record/5111693)](doi.svg)
 
 An open-source solution for vertical jump analysis
 
