@@ -12,6 +12,7 @@ Imports:
   shinydashboard,
   shinyjs,
   signal,
+  tidytable,
   zoo
 
 Description: This Shiny app is geared toward strength and conditioning professionals and researchers
