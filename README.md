@@ -1,5 +1,7 @@
 # Shiny Vertical Jump Analysis
 
+https://zenodo.org/badge/119111981.svg
+
 An open-source solution for vertical jump analysis
 
 # Table of contents
