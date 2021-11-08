@@ -66,10 +66,16 @@ body <-
               dateInput(inputId = "test_date",
                         label = "Testing Date")
             ),
-            fileInput(inputId = "file_upload",
-                      label = "Upload Data",
-                      multiple = FALSE,
-                      accept = c("\\.txt", "\\.csv")),
+            splitLayout(
+              fileInput(inputId = "file_upload",
+                        label = "Upload Data",
+                        multiple = FALSE,
+                        accept = c("\\.txt", "\\.csv")),
+              selectInput(inputId = "plate_layout",
+                          label = "Plate Layout",
+                          choices = c("Left-Right" = "lr",
+                                      "Right-Left" = "rl"))
+            ),
             textInput(inputId = "athlete_name",
                       label = "Enter Athlete Name"),
             splitLayout(
@@ -108,7 +114,7 @@ body <-
             splitLayout(
               numericInput(inputId = "sampling_frequency",
                            label = "Sampling Frequency",
-                           value = 1000),
+                           value = NA),
               numericInput(inputId = "standing_length",
                            label = "Quiet Standing",
                            value = 1,
@@ -118,33 +124,28 @@ body <-
             ),
             splitLayout(
               numericInput(inputId = "fp1_slope",
-                           label = "FP1 Slope",
+                           label = "Left Slope",
                            value = 1),
               numericInput(inputId = "fp1_intercept",
-                           label = "FP1 Intercept",
+                           label = "Left Intercept",
                            value = 0)
             ),
             splitLayout(
               numericInput(inputId = "fp2_slope",
-                           label = "FP2 Slope",
+                           label = "Right Slope",
                            value = 1),
               numericInput(inputId = "fp2_intercept",
-                           label = "FP2 Intercept",
+                           label = "Right Intercept",
                            value = 0)
             ),
-            tags$div(
-              tags$strong(
-                HTML(paste(icon("save"), "Save Data"))
-              ),
-              style = "margin-bottom:10px;"
-            ),
             splitLayout(
+              actionButton(inputId = "run_analysis",
+                           label = "Analyze Data"),
               actionButton(inputId = "save_trial",
-                           label = "Summary"),
+                           label = "Save Summary"),
               actionButton(inputId = "save_raw",
-                           label = "Raw Curve")#,
-              # actionButton(inputId = "save_interpolated",
-              #              label = "Interp. Curve")
+                           label = "Save Raw Curve"),
+              style = "margin-top: 25px;"
             )
           ),
           
@@ -238,14 +239,16 @@ server <- function(input, output, session) {
                        value = 1)
   })
   
-  observe({
-    req(jump_information$data)
+  observeEvent(input$run_analysis, {
+    req(jump_information$data,
+        !is.na(input$sampling_frequency))
     
     jump_information$trial_list <-
       create_trial_list(.data = jump_information$data,
                         upload_type = isolate(input$upload_type),
                         filter_type = input$filter_type,
                         sampling_rate = input$sampling_frequency,
+                        plate_layout = input$plate_layout,
                         fp1_slope = input$fp1_slope,
                         fp1_intercept = input$fp1_intercept,
                         fp2_slope = input$fp2_slope,
@@ -472,12 +475,14 @@ server <- function(input, output, session) {
   output$interp_curve_plot <-
     renderPlotly({
       req(nrow(jump_information$interpolated_data) > 0)
-
+      
       build_raw_interp_plot(jump_information$interpolated_data,
                             "Interpolated Data")
     })
   
   observeEvent(input$interp_save, {
+    req(nrow(jump_information$interpolated_data) > 0)
+    
     save_interpolated_curve(jump_information$interpolated_data,
                             as.character(Sys.Date()))
     

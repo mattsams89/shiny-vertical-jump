@@ -73,11 +73,11 @@ sj_table_headers <-
     "Peak Power", "Force @ Peak Power", 
     "Velocity @ Peak Power", "Time to Peak Force", 
     "Avg RFD", "Contact Time", "RSI Modified",
-    "FP1 Net Impulse", "FP2 Net Impulse", "Net Impulse SI",
-    "FP1 Peak Force", "FP2 Peak Force", "Peak Force SI",
-    "FP1 Time to Peak Force", "FP2 Time to Peak Force",
-    "Time to Peak Force SI", "FP1 Avg RFD", 
-    "FP2 Avg RFD", "Avg RFD SI")
+    "Left Net Impulse", "Right Net Impulse", "Net Impulse SI",
+    "Left Peak Force", "Right Peak Force", "Peak Force SI",
+    "Left Time to Peak Force", "Right Time to Peak Force",
+    "Time to Peak Force SI", "Left Avg RFD", 
+    "Right Avg RFD", "Avg RFD SI")
 
 cmj_table_headers <- 
   c(sj_table_headers, "Unweighting Duration", "Braking Duration", 
@@ -87,8 +87,8 @@ cmj_table_headers <-
     "Peak Propulsive Force", "Avg Propulsive Force", 
     "Peak Propulsive Velocity", "Avg Propulsive Velocity",
     "Peak Propulsive Power", "Avg Propulsive Power", "Propulsive Work",
-    "Braking RFD", "FP1 Braking RFD", "FP2 Braking RFD", "Braking RFD SI",
-    "Decel RFD", "FP1 Decel RFD", "FP2 Decel RFD", "Decel RFD SI")
+    "Braking RFD", "Left Braking RFD", "Right Braking RFD", "Braking RFD SI",
+    "Decel RFD", "Left Decel RFD", "Right Decel RFD", "Decel RFD SI")
 
 save_headers <- 
   c("date", "name", "jump_type", "trial_number", "bar_load", cmj_table_headers)
@@ -211,7 +211,7 @@ detect_peaks <- function(.data, sampling_rate) {
           # Requires peaks to be at least 250 points from one another.
           # This prevents multiple peaks being caught immediately adjacent to
           # one another
-          minpeakdistance = round(250 / sampling_rate * 1000),
+          minpeakdistance = round(sampling_rate * 0.25),
           minpeakheight = min_peak_height))] %>% 
       arrange.(V2) %>% 
       summarize.(start = shift(V2, fill = 1),
@@ -233,8 +233,8 @@ detect_peaks <- function(.data, sampling_rate) {
       # below_threshold is first. Only peak pairs where there are 202-903ms
       # below 10N are retained. This removes cases where the athletes are
       # stepping off and on the plates, etc.
-      filter.(below_threshold %between% round(c(202 / sampling_rate * 1000,
-                                                903 / sampling_rate * 1000)))
+      filter.(below_threshold %between% round(c(sampling_rate * 0.202,
+                                                sampling_rate * 0.903)))
     
     # time_diff is our other major player. Once we've thrown out peak pairs
     # with extremely low/high below_threshold values, we also want to make sure
@@ -284,7 +284,7 @@ detect_peaks <- function(.data, sampling_rate) {
 # of the number of trials we're analyzing. This greatly simplifies the analysis
 # process.
 create_trial_list <- function(.data, upload_type, filter_type, sampling_rate,
-                              fp1_slope, fp1_intercept,
+                              plate_layout, fp1_slope, fp1_intercept,
                               fp2_slope, fp2_intercept) {
   if (upload_type == "Pasco" | upload_type == "Multiple Trials - Wide" |
       upload_type == "Single Trial") {
@@ -292,8 +292,13 @@ create_trial_list <- function(.data, upload_type, filter_type, sampling_rate,
     
     trial_list <-
       map.(1:trials, function(x) {
-        left_col <- x * 2 - 1
-        right_col <- x * 2
+        if (plate_layout == "lr") {
+          left_col <- x * 2 - 1
+          right_col <- x * 2
+        } else {
+          left_col <- x * 2
+          right_col <- x * 2 - 1
+        }
         
         # tidyselect syntax allows us to pass the column number instead of the
         # name.
@@ -323,6 +328,12 @@ create_trial_list <- function(.data, upload_type, filter_type, sampling_rate,
     # file formats. detect_peaks is going to return multiple peak pairs, so
     # we're going to iterate across those instead of iterating column-wise
     # like above.
+    if (plate_layout == "rl") {
+      .data <-
+        .data %>% 
+        select.(2, 1)
+    }
+    
     calibrated_data <-
       apply_calibration(.data, filter_type, sampling_rate,
                         fp1_slope, fp1_intercept,
@@ -416,7 +427,8 @@ detect_events <- function(trial_list, sampling_rate) {
       changepoints <-
         cpt.meanvar(trial_data[, total_force],
                     method = "BinSeg",
-                    minseglen = round(1000 * (sampling_rate / 1000)),
+                    minseglen = sampling_rate,
+                    # minseglen = round(1000 * (sampling_rate / 1000)), # What was I even doing here?
                     Q = 5,
                     class = FALSE)
     })
@@ -880,9 +892,9 @@ build_primary_secondary_plot <- function(.data = NULL, analyzed_data = NULL) {
       analyzed_data$plot_data %>% 
       plot_ly(x = ~ time) %>% 
       add_lines(y = ~ fp1,
-                name = "FP1") %>% 
+                name = "Left") %>% 
       add_lines(y = ~ fp2,
-                name = "FP2") %>% 
+                name = "Right") %>% 
       add_lines(y = ~ total_force,
                 name = "Total Force") %>% 
       add_annotations(x = 0,
@@ -1115,7 +1127,9 @@ save_raw_curve <- function(.data, date, name,
             jump_type = .data$plot_annotations$jump_type,
             trial_number = trial_number,
             bar_load = bar_load) %>% 
-    select.(date:bar_load, time:total_force)
+    select.(date:bar_load, time:total_force) %>% 
+    rename.(left = fp1,
+            right = fp2)
   
   if (.data$jump_type == "sj") {
     # SJs are basic
@@ -1203,11 +1217,23 @@ interpolate_data <- function(curve_list, trial, jump_type,
   # Linear interpolation is very straightforward. WYSIWYG in terms of your
   # desired length.
   if (jump_type == "sj" | method == "linear") {
+    # I had a user email me about phase labels being dropped in linear
+    # interpolation, which was a huge oversight on my part. I didn't want to add
+    # an extra if-else here to delineate between SJ and CMJ interpolation, so
+    # they use the same method of adding labels back to the data.
+    # Importantly, I have the CMJ relabeller set to use the nearest label
+    # in the raw data based on index location. That is, if unweighting is from
+    # indices 1-175 and the interpolation returns an index of 175.4 that is
+    # rounded down to 175, the label will be "Unweighting." If it's 175.51,
+    # however, the label will be returned as "Braking."
     interpolated_data <-
       trial_data %>% 
-      summarize.(across.(fp1:total_force,
+      summarize.(across.(left:total_force,
                          ~ approx(time, .x,
-                                  n = phase_lengths[["Curve"]])$y))
+                                  n = phase_lengths[["Curve"]])$y),
+                 index = round(approx(time, n = phase_lengths[["Curve"]])$x)) %>% 
+      mutate.(phase = trial_data[index, phase]) %>% 
+      select.(-index)
   } else {
     # Here begin the piecewise shenanigans. First up is if the user wants to
     # combine the unweighting and braking phases into a "Stretching" phase
@@ -1216,7 +1242,7 @@ interpolate_data <- function(curve_list, trial, jump_type,
         bind_rows.(
           trial_data %>% 
             filter.(phase %in% c("Unweighting", "Braking")) %>% 
-            summarize.(across.(fp1:total_force,
+            summarize.(across.(left:total_force,
                                ~ approx(time, .x,
                                         n = phase_lengths[["Stretching"]])$y)) %>% 
             mutate.(phase = "Stretching"),
@@ -1224,7 +1250,7 @@ interpolate_data <- function(curve_list, trial, jump_type,
             # Here's what I mentioned above about moving back to the final
             # data point from the previous phase...
             filter.(row_number.() >= which.max(phase == "Propulsion") - 1) %>% 
-            summarize.(across.(fp1:total_force,
+            summarize.(across.(left:total_force,
                                ~ approx(time, .x,
                                         # And increasing the interpolation length
                                         # by 1, only to immediately remove the
@@ -1243,7 +1269,7 @@ interpolate_data <- function(curve_list, trial, jump_type,
           if (x == "Unweighting") {
             trial_data %>% 
               filter.(phase == x) %>% 
-              summarize.(across.(fp1:total_force,
+              summarize.(across.(left:total_force,
                                  ~ approx(time, .x,
                                           n = phase_lengths[[x]])$y)) %>% 
               mutate.(phase = x)
@@ -1252,7 +1278,7 @@ interpolate_data <- function(curve_list, trial, jump_type,
               # This follows the same add-one-remove-one approach as before.
               filter.(row_number.() %between% c(which.max(phase == x) - 1,
                                                 last(which(phase == x)))) %>% 
-              summarize.(across.(fp1:total_force,
+              summarize.(across.(left:total_force,
                                  ~ approx(time, .x,
                                           n = as.numeric(phase_lengths[[x]]) + 1)$y[-1])) %>% 
               mutate.(phase = x)
@@ -1266,9 +1292,11 @@ interpolate_data <- function(curve_list, trial, jump_type,
     mutate.(date = test_date,
             name = name,
             jump_type = jump_type,
+            method = ifelse.(jump_type == "sj", "linear", method),
             trial_number = trial_number,
             bar_load = bar_load,
-            .before = fp1)
+            index = seq_along(total_force),
+            .before = left)
   
   return(interpolated_data)
 }
@@ -1276,8 +1304,8 @@ interpolate_data <- function(curve_list, trial, jump_type,
 build_raw_interp_plot <- function(.df, plot_title) {
   .df %>% 
     plot_ly(x = ~ seq_along(total_force)) %>% 
-    add_lines(y = ~ fp1, name = "FP1") %>% 
-    add_lines(y = ~ fp2, name = "FP2") %>% 
+    add_lines(y = ~ left, name = "Left") %>% 
+    add_lines(y = ~ right, name = "Right") %>% 
     add_lines(y = ~ total_force, name = "Total Force") %>% 
     layout(
       title = plot_title,
