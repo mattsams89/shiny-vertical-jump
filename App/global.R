@@ -212,7 +212,8 @@ detect_peaks <- function(.data, sampling_rate) {
           # This prevents multiple peaks being caught immediately adjacent to
           # one another
           minpeakdistance = round(sampling_rate * 0.25),
-          minpeakheight = min_peak_height))] %>% 
+          minpeakheight = min_peak_height,
+          zero = "-"))] %>% 
       arrange.(V2) %>% 
       summarize.(start = shift(V2, fill = 1),
                  end = V2) %>% 

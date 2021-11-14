@@ -54,9 +54,9 @@ Unlike previous versions of the app that only worked with Pasco Capstone data, t
 
 ## Analyzing your data
 
-**NOTE: THESE INSTRUCTIONS ARE SLIGHTLY OUT OF DATE WITH THE NEWEST UPDATE (v2.1) due to a change in the UI as well as in the processing code. I'll update the readme to reflect this change, but what you need to know: Now, you need to manually enter a sampling rate and press the "Analyze Data" button instead of the app's original function of analyzing the data as soon as they were uploaded. You'll need to press this button if you 1) upload a new file, 2) change the sampling rate, 3) change the filter, 4) change the plate layout, or 5) change the calibration slope/intercept.**
+**You may notice a few out of date images and gifs. I'm working on updating these.**
 
-Once you have everything installed and have exported your data, all that's left is the analysis. I've attempted to make analysis as pain-free as possible as you're only required to set a few pieces of information on the left-hand side of the application. The analysis and saving the results are essentially automated after that.
+Once you have everything installed and have exported your data, all that's left is the analysis. With the most recent release (v2.1.0), things aren't *quite* as automated as they were before, but where we lost automation, we gained fewer headaches...don't think about that statement too hard.
 
 Run the app by pressing ctrl + shift + enter or by pressing the 'Run App' button.
 
@@ -65,12 +65,14 @@ You'll see the following in the left-hand panel:
 1.  A file selector  
     Currently, files up to 40 MB are supported. You can change this in the app settings by altering line 14 of the global.R file: `options(shiny.maxRequestSize = 40 * 1024 ^ 2)`.
 2.  A trial selector
-3.  Dropdowns for filter application, jump type, and jump start location
+3.  Dropdowns for plate layout (**NEW**), filter application, jump type, and jump start location
 4.  Inputs for the athlete's name, bar load, sampling frequency, quiet standing length (in seconds), and calibration values for FP1 and FP2.
 
-Start by selecting your file layout in the "File Type" input. The app *will* crash if your selection doesn't match what you upload. After selecting the file layout, use the upload button to upload your data. It will take it a moment to upload and process depending on the file size and number of trials.
+Start by selecting your file layout in the "File Type" input. If your data don't match the "typical" layout of FP1 being left and FP2 being right, you can change that by changing the Plate Layout dropdown to Right-Left. **NEW** Next, enter your sampling frequency in Hz (e.g. 1000, 1200, 1500) and then press the "Analyze Data" button. For those of you who have used the app previously, this is a little different from the original automatic method; the app was crashing when trying to enter new sampling frequencies, so starting the analysis with a button click seemed like the easiest fix.
 
-![Upload](/Tutorial/file_upload.gif)
+**Importantly, with the new button, you'll need to press the button again if you 1) upload new data, 2) change the plate layout, 3) change the filter or calibration equation, or 4) change the sampling rate.** Each of the aforementioned inputs control functions in the analysis process that are dependent on the sampling rate input. 
+
+![Upload](/Tutorial/new_upload.png)
 
 The app is smart enough to (hopefully) auto-recognize the jump type and find quiet standing. The former is accomplished by examining the difference between body weight during quiet standing and the minimum force prior to peak force, whereas the latter is accomplished by finding the area with lowest variance in the data prior to jump initiation. If the app incorrectly guesses the jump type, you can manually set the jump type with the "Select Jump Type" dropdown. Likewise, if you don't like what the app selected for quiet standing, you can manually "brush" the top plot by clicking and dragging across the data.
 
@@ -80,9 +82,7 @@ The height of your brush doesn't matter; only the X-axis coordinates of the brus
 
 Once your trial is selected correctly, a quick glance at the bottom plot and plots on the right will tell you whether the app recognized the jump type correctly. I rather arbitrarily chose a 250N difference between quiet standing and minimum force prior to peak force as the delineation between SJ and CMJ. That worked well with athletes ranging from 65kg - 110kg, but it may not work as well for smaller athletes.
 
-**NEW**
-
-Because this wasn't very clear in the last version of the app, pay special attention to the "Jump Start Location" and "Check Inverse Threshold?" inputs. By default, they're set to "5SD - BW" and "Yes." Briefly, these determine how the app defines the jump start. As you can see in some of the example trials, the athletes produced a pre-SJ countermovement or a slight uptick in their force prior to performing a CMJ. In either case, we've missed the *true* jump start location. Setting the Inverse Threshold to Yes causes the app to look back 100ms to see if the trial violates the "inverse threshold," or body weight +/- 5*SD. If it does, the app steps back to the last point before the athlete broke the inverse threshold.
+Because this wasn't very clear in earlier versions of the app, pay special attention to the "Jump Start Location" and "Check Inverse Threshold?" inputs. By default, they're set to "5SD - BW" and "Yes." Briefly, these determine how the app defines the jump start. As you can see in some of the example trials, the athletes produced a pre-SJ countermovement or a slight uptick in their force prior to performing a CMJ. In either case, we've missed the *true* jump start location. Setting the Inverse Threshold to Yes causes the app to look back 100ms to see if the trial violates the "inverse threshold," or body weight +/- 5*SD. If it does, the app steps back to the last point before the athlete broke the inverse threshold.
 
 From there, the jump start is affected by the Jump Start Location input. The default (5SD - BW) finds the first point the force-time curve returns to body weight, while (5SD - 30ms) steps back an arbitrary 30ms (in line with some of the recommendations that are out there). I have found 5SD - BW isn't always perfect so I may change "body weight" to mean +/- 1SD of body weight, but have no concrete plans right now.
 
