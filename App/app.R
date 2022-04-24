@@ -244,7 +244,7 @@ server <- function(input, output, session) {
         !is.na(input$sampling_frequency))
     
     jump_information$trial_list <-
-      create_trial_list(.data = jump_information$data,
+      create_trial_list(.df = jump_information$data,
                         upload_type = isolate(input$upload_type),
                         filter_type = input$filter_type,
                         sampling_rate = input$sampling_frequency,
@@ -296,7 +296,7 @@ server <- function(input, output, session) {
       trial <- input$selected_trial
       
       build_primary_secondary_plot(
-        .data = jump_information$processed_list[[trial]]
+        .df = jump_information$processed_list[[trial]]
       )
     })
   
@@ -322,7 +322,7 @@ server <- function(input, output, session) {
     
     jump_information$processed_jump <-
       process_jump(
-        .data = jump_information$processed_list[[trial]],
+        .df = jump_information$processed_list[[trial]],
         weight_override = jump_information$trial_brush,
         quiet_standing_length = input$standing_length,
         jump_type = input$jump_type,
@@ -357,7 +357,7 @@ server <- function(input, output, session) {
     req(jump_information$processed_jump)
     
     save_summary_data(
-      .data = jump_information$processed_jump,
+      .df = jump_information$processed_jump,
       date = input$test_date,
       name = input$athlete_name,
       trial_number = input$selected_trial,
@@ -371,7 +371,7 @@ server <- function(input, output, session) {
     req(jump_information$processed_jump)
     
     save_raw_curve(
-      .data = jump_information$processed_jump,
+      .df = jump_information$processed_jump,
       date = input$test_date,
       name = input$athlete_name,
       trial_number = input$selected_trial,
