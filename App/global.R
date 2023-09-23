@@ -1,5 +1,5 @@
-pacman::p_load(shiny, shinydashboard, data.table, tidytable, signal,
-               changepoint, pracma, plotly, knitr, shinyjs, kableExtra)
+pacman::p_load(shiny, shinydashboard, data.table, signal, changepoint,
+               pracma, plotly, tidytable, knitr, shinyjs, kableExtra)
 
 # Accepts files up to 40 mB in size; adjust based on your file size requirements
 options(shiny.maxRequestSize = 40 * 1024 ^ 2)
@@ -105,13 +105,13 @@ save_headers <-
 parse_file <- function(file_location, upload_type) {
   comma_check <-
     sum(fread(file = file_location,
-              skip = ifelse.(upload_type == "Pasco", 1, 0),
+              skip = if_else(upload_type == "Pasco", 1, 0),
               header = TRUE,
               nrows = 1)[1] %like% ",")
   
   data <-
     fread(file = file_location,
-          skip = ifelse.(upload_type == "Pasco", 1, 0),
+          skip = if_else(upload_type == "Pasco", 1, 0),
           header = TRUE,
           na.strings = c("", "NA"),
           check.names = TRUE,
@@ -120,14 +120,14 @@ parse_file <- function(file_location, upload_type) {
   if (upload_type == "Pasco") {
     data <-
       data %>% 
-      select.(matches("Normal"))
+      select(matches("Normal"))
   }
   
   if (comma_check > 0) {
     data <-
       data %>% 
-      mutate.(across.(.cols = everything(),
-                      ~ as.numeric(sub(",", ".", .x, fixed = TRUE))))
+      mutate(across(.cols = everything(),
+                    ~ as.numeric(sub(",", ".", .x, fixed = TRUE))))
   }
   
   return(data)
@@ -144,33 +144,33 @@ apply_calibration <- function(.df, filter_type, sampling_rate,
   
   trial_data <- 
     .df %>% 
-    select.(fp1 = 1, fp2 = 2) %>% 
-    drop_na.() %>% 
-    mutate.(time = row_number.() / sampling_rate,
-            fp1 = fp1 * fp1_slope + fp1_intercept,
-            fp2 = fp2 * fp2_slope + fp2_intercept) %>% 
-    relocate.(time, .before = fp1)
+    select(fp1 = 1, fp2 = 2) %>% 
+    drop_na() %>% 
+    mutate(time = seq_len(n()) / sampling_rate,
+           fp1 = fp1 * fp1_slope + fp1_intercept,
+           fp2 = fp2 * fp2_slope + fp2_intercept) %>% 
+    relocate(time, .before = fp1)
   
   if (filter_type == "no_filter") {
     trial_data <-
       trial_data %>% 
-      mutate.(total_force = fp1 + fp2)
+      mutate(total_force = fp1 + fp2)
   } else if (filter_type == "butt_filter") {
     filter <-
       butter(4, 50 / (0.5 * sampling_rate), "low")
     
     trial_data <-
       trial_data %>% 
-      mutate.(across.(.cols = fp1:fp2,
-                      ~ filtfilt(filter, .x)),
-              total_force = fp1 + fp2)
+      mutate(across(.cols = fp1:fp2,
+                    ~ filtfilt(filter, .x)),
+             total_force = fp1 + fp2)
   } else {
     trial_data <-
       trial_data %>% 
-      mutate.(across.(.cols = fp1:fp2,
-                      ~ as.numeric(stats::filter(.x, rep(1 / 10, 10), 
-                                                 sides = 2))),
-              total_force = fp1 + fp2)
+      mutate(across(.cols = fp1:fp2,
+                    ~ as.numeric(stats::filter(.x, rep(1 / 10, 10), 
+                                               sides = 2))),
+             total_force = fp1 + fp2)
   }
   
   return(trial_data)
@@ -214,17 +214,17 @@ detect_peaks <- function(.df, sampling_rate) {
           minpeakdistance = round(sampling_rate * 0.25),
           minpeakheight = min_peak_height,
           zero = "-"))] %>% 
-      arrange.(V2) %>% 
-      summarize.(start = shift(V2, fill = 1),
-                 end = V2) %>% 
-      filter.(start != 1)
+      arrange(V2) %>% 
+      summarize(start = shift(V2, fill = 1),
+                end = V2) %>% 
+      filter(start != 1)
     
     # After creating the data_peaks tidytable above, we iterate through it here
     # to determine if we've accurately captured our peaks (remember, takeoff
     # and landing) and to throw out erroneously identified peaks.
     # The two biggies are going to be the time_diff and below_threshold.
     peak_pairs <-
-      data_peaks[, map2_df.(start, end, function(x, y) {
+      data_peaks[, map2_df(start, end, function(x, y) {
         .df[seq_len(nrow(.df)) %between% c(x, y),
               .(start_time = first(time),
                 end_time = last(time),
@@ -234,8 +234,8 @@ detect_peaks <- function(.df, sampling_rate) {
       # below_threshold is first. Only peak pairs where there are 202-903ms
       # below 10N are retained. This removes cases where the athletes are
       # stepping off and on the plates, etc.
-      filter.(below_threshold %between% round(c(sampling_rate * 0.202,
-                                                sampling_rate * 0.903)))
+      filter(below_threshold %between% round(c(sampling_rate * 0.202,
+                                               sampling_rate * 0.903)))
     
     # time_diff is our other major player. Once we've thrown out peak pairs
     # with extremely low/high below_threshold values, we also want to make sure
@@ -292,7 +292,7 @@ create_trial_list <- function(.df, upload_type, filter_type, sampling_rate,
     trials <- ncol(.df) / 2
     
     trial_list <-
-      map.(1:trials, function(x) {
+      map(1:trials, function(x) {
         if (plate_layout == "lr") {
           left_col <- x * 2 - 1
           right_col <- x * 2
@@ -305,7 +305,7 @@ create_trial_list <- function(.df, upload_type, filter_type, sampling_rate,
         # name.
         trial_data <-
           .df %>% 
-          select.(!!left_col, !!right_col)
+          select(!!left_col, !!right_col)
         
         calibrated_data <-
           apply_calibration(trial_data, filter_type, sampling_rate,
@@ -332,7 +332,7 @@ create_trial_list <- function(.df, upload_type, filter_type, sampling_rate,
     if (plate_layout == "rl") {
       .df <-
         .df %>% 
-        select.(2, 1)
+        select(2, 1)
     }
     
     calibrated_data <-
@@ -346,7 +346,7 @@ create_trial_list <- function(.df, upload_type, filter_type, sampling_rate,
     # This map. returns a list identical to the list returned
     # from the other method above.
     trial_list <-
-      map.(seq_len(nrow(peaks)), function(x) {
+      map(seq_len(nrow(peaks)), function(x) {
         return(
           list(
             trial_data = calibrated_data[time %between% c(peaks[x, start_window],
@@ -366,7 +366,7 @@ create_trial_list <- function(.df, upload_type, filter_type, sampling_rate,
 # We also take an initial stab at finding quiet standing and further
 # constraining the trial data.
 detect_events <- function(trial_list, sampling_rate) {
-  map.(trial_list, function(x) {
+  map(trial_list, function(x) {
     trial_data <-
       x$trial_data
     
@@ -400,9 +400,9 @@ detect_events <- function(trial_list, sampling_rate) {
     flight_statistics <-
       trial_data[time >= takeoff_time + adjusted_flight_duration &
                    time <= landing_time - adjusted_flight_duration] %>% 
-      summarize.(mean = mean(total_force),
-                 sd = sd(total_force)) %>% 
-      mutate.(threshold = mean + sd * 5)
+      summarize(mean = mean(total_force),
+                sd = sd(total_force)) %>% 
+      mutate(threshold = mean + sd * 5)
     
     # ...where takeoff and landing occur when the total_force passes
     # the newly calculated threshold value.
@@ -446,13 +446,13 @@ detect_events <- function(trial_list, sampling_rate) {
     # From there, we keep the pair with the lowest variance between them as
     # the likely candidate for quiet standing.
     weigh_start_time <-
-      changepoints[, map2_df.(cp1, cp2, function(x, y) {
+      changepoints[, map2_df(cp1, cp2, function(x, y) {
         trial_data[seq_len(nrow(trial_data)) %between% c(x, y),
                    .(weight_start = first(time),
                      variance = var(total_force),
                      below_threshold = sum(total_force <= 10))]
       })] %>% 
-      filter.(below_threshold == 0) %>% 
+      filter(below_threshold == 0) %>% 
       tidytable::dt(order(variance),
                     first(weight_start))
     
@@ -668,7 +668,7 @@ process_jump <- function(.df, weight_override = NULL, quiet_standing_length,
   # Jump metric calculations ----
   jump_data <-
     trial_data[time %between% c(jump_start_time, takeoff_time)] %>% 
-    mutate.(
+    mutate(
       impulse = cumtrapz(time, total_force - body_weight),
       fp1_impulse = cumtrapz(time, fp1 - fp1_weight),
       fp2_impulse = cumtrapz(time, fp2 - fp2_weight),
@@ -996,7 +996,7 @@ build_cmj_subplots <- function(.df, variable) {
   if (variable == "total_force") {
     plot_data <-
       plot_data %>% 
-      mutate.(total_force = total_force - first(total_force))
+      mutate(total_force = total_force - first(total_force))
   }
   
   plot <-
@@ -1068,7 +1068,7 @@ build_metric_table <- function(.df) {
   else {
     table_data <-
       table_data %>% 
-      select.(-c(unweight_end_time, braking_end_time))
+      select(-c(unweight_end_time, braking_end_time))
     
     headers <- cmj_table_headers
   }
@@ -1078,7 +1078,7 @@ build_metric_table <- function(.df) {
   # Pivots the entire table to long format.
   long_table <-
     table_data %>% 
-    pivot_longer.(names_to = "Variable", values_to = "Value")
+    pivot_longer(names_to = "Variable", values_to = "Value")
   
   # Ironically, we drop the column names, but that's neither here nor there.
   output_table <-
@@ -1123,26 +1123,26 @@ save_raw_curve <- function(.df, date, name,
   
   raw_data <-
     .df$subplot_data %>% 
-    mutate.(date = date,
-            name = name,
-            jump_type = .df$plot_annotations$jump_type,
-            trial_number = trial_number,
-            bar_load = bar_load) %>% 
-    select.(date:bar_load, time:total_force) %>% 
-    rename.(left = fp1,
-            right = fp2)
+    mutate(date = date,
+           name = name,
+           jump_type = .df$plot_annotations$jump_type,
+           trial_number = trial_number,
+           bar_load = bar_load) %>% 
+    select(date:bar_load, time:total_force) %>% 
+    rename(left = fp1,
+           right = fp2)
   
   if (.df$jump_type == "sj") {
     # SJs are basic
     raw_data <-
       raw_data %>% 
-      mutate.(phase = "Propulsion",
-              time = time - first(time))
+      mutate(phase = "Propulsion",
+             time = time - first(time))
   } else {
     # We have three possible phases for the CMJ in this iteration
     raw_data <-
       raw_data %>% 
-      mutate.(phase = case_when.(
+      mutate(phase = case_when(
         time <= .df$metric_table$unweight_end_time ~ "Unweighting",
         time <= .df$metric_table$braking_end_time ~ "Braking",
         TRUE ~ "Propulsion"))
@@ -1173,8 +1173,8 @@ parse_curve_file <- function(file_location) {
   # which makes operating on each list element a cake walk.
   curve_list <-
     data %>% 
-    group_split.(date, name, jump_type, trial_number, bar_load,
-                 .named = TRUE)
+    group_split(date, name, jump_type, trial_number, bar_load,
+                .named = TRUE)
   
   return(curve_list)
 }
@@ -1229,36 +1229,36 @@ interpolate_data <- function(curve_list, trial, jump_type,
     # however, the label will be returned as "Braking."
     interpolated_data <-
       trial_data %>% 
-      summarize.(across.(left:total_force,
-                         ~ approx(time, .x,
-                                  n = phase_lengths[["Curve"]])$y),
-                 index = round(approx(time, n = phase_lengths[["Curve"]])$x)) %>% 
-      mutate.(phase = trial_data[index, phase]) %>% 
-      select.(-index)
+      summarize(across(left:total_force,
+                       ~ approx(time, .x,
+                                n = phase_lengths[["Curve"]])$y),
+                index = round(approx(time, n = phase_lengths[["Curve"]])$x)) %>% 
+      mutate(phase = trial_data[index, phase]) %>% 
+      select(-index)
   } else {
     # Here begin the piecewise shenanigans. First up is if the user wants to
     # combine the unweighting and braking phases into a "Stretching" phase
     if (combine_phases) {
       interpolated_data <-
-        bind_rows.(
+        bind_rows(
           trial_data %>% 
-            filter.(phase %in% c("Unweighting", "Braking")) %>% 
-            summarize.(across.(left:total_force,
-                               ~ approx(time, .x,
-                                        n = phase_lengths[["Stretching"]])$y)) %>% 
-            mutate.(phase = "Stretching"),
+            filter(phase %in% c("Unweighting", "Braking")) %>% 
+            summarize(across(left:total_force,
+                             ~ approx(time, .x,
+                                      n = phase_lengths[["Stretching"]])$y)) %>% 
+            mutate(phase = "Stretching"),
           trial_data %>% 
             # Here's what I mentioned above about moving back to the final
             # data point from the previous phase...
-            filter.(row_number.() >= which.max(phase == "Propulsion") - 1) %>% 
-            summarize.(across.(left:total_force,
-                               ~ approx(time, .x,
-                                        # And increasing the interpolation length
-                                        # by 1, only to immediately remove the
-                                        # first point from the resultant vector
-                                        # via the [-1]
-                                        n = as.numeric(phase_lengths[["Propulsion"]]) + 1)$y[-1])) %>% 
-            mutate.(phase = "Propulsion")
+            filter(row_number(time) >= which.max(phase == "Propulsion") - 1) %>% 
+            summarize(across(left:total_force,
+                             ~ approx(time, .x,
+                                      # And increasing the interpolation length
+                                      # by 1, only to immediately remove the
+                                      # first point from the resultant vector
+                                      # via the [-1]
+                                      n = as.numeric(phase_lengths[["Propulsion"]]) + 1)$y[-1])) %>% 
+            mutate(phase = "Propulsion")
         )
     } else {
       # This used to be such a pretty three-line piece of code before I
@@ -1266,23 +1266,23 @@ interpolate_data <- function(curve_list, trial, jump_type,
       # treated differently from Braking and Propulsion, hence the one final
       # if-else pair.
       interpolated_data <-
-        map_df.(c("Unweighting", "Braking", "Propulsion"), function(x) {
+        map_df(c("Unweighting", "Braking", "Propulsion"), function(x) {
           if (x == "Unweighting") {
             trial_data %>% 
-              filter.(phase == x) %>% 
-              summarize.(across.(left:total_force,
-                                 ~ approx(time, .x,
-                                          n = phase_lengths[[x]])$y)) %>% 
-              mutate.(phase = x)
+              filter(phase == x) %>% 
+              summarize(across(left:total_force,
+                               ~ approx(time, .x,
+                                        n = phase_lengths[[x]])$y)) %>% 
+              mutate(phase = x)
           } else {
             trial_data %>% 
               # This follows the same add-one-remove-one approach as before.
-              filter.(row_number.() %between% c(which.max(phase == x) - 1,
-                                                last(which(phase == x)))) %>% 
-              summarize.(across.(left:total_force,
-                                 ~ approx(time, .x,
-                                          n = as.numeric(phase_lengths[[x]]) + 1)$y[-1])) %>% 
-              mutate.(phase = x)
+              filter(row_number(time) %between% c(which.max(phase == x) - 1,
+                                              last(which(phase == x)))) %>% 
+              summarize(across(left:total_force,
+                               ~ approx(time, .x,
+                                        n = as.numeric(phase_lengths[[x]]) + 1)$y[-1])) %>% 
+              mutate(phase = x)
           }
         })
     }
@@ -1290,14 +1290,14 @@ interpolate_data <- function(curve_list, trial, jump_type,
   
   interpolated_data <-
     interpolated_data %>% 
-    mutate.(date = test_date,
-            name = name,
-            jump_type = jump_type,
-            method = ifelse.(jump_type == "sj", "linear", method),
-            trial_number = trial_number,
-            bar_load = bar_load,
-            index = seq_along(total_force),
-            .before = left)
+    mutate(date = test_date,
+           name = name,
+           jump_type = jump_type,
+           method = if_else(jump_type == "sj", "linear", method),
+           trial_number = trial_number,
+           bar_load = bar_load,
+           index = seq_along(total_force),
+           .before = left)
   
   return(interpolated_data)
 }
@@ -1338,13 +1338,13 @@ save_summary_data <- function(.df, date, name,
   
   summary_data <-
     .df$metric_table %>% 
-    select.(-any_of(c("unweight_end_time", "braking_end_time"))) %>% 
-    mutate.(date = !!date,
-            name = !!name,
-            jump_type = .df$plot_annotations$jump_type,
-            trial_number = !!trial_number,
-            bar_load = !!bar_load,
-            .before = body_mass)
+    select(-any_of(c("unweight_end_time", "braking_end_time"))) %>% 
+    mutate(date = !!date,
+           name = !!name,
+           jump_type = .df$plot_annotations$jump_type,
+           trial_number = !!trial_number,
+           bar_load = !!bar_load,
+           .before = body_mass)
   
   if (!dir.exists("Analyses"))
     dir.create("Analyses")
